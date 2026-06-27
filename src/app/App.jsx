@@ -5,6 +5,8 @@ import { OrderReviewScreen } from "./components/OrderReviewScreen";
 import { PaymentScreen } from "./components/PaymentScreen";
 import { OrderStatusScreen } from "./components/OrderStatusScreen";
 import { PickupConfirmationScreen } from "./components/PickupConfirmationScreen";
+import { AdminDashboard } from "./components/AdminDashboard";
+import { VendorDashboard } from "./components/VendorDashboard";
 
 const STEP_LABELS = {
   login: 0,
@@ -17,18 +19,44 @@ const STEP_LABELS = {
 
 export default function App() {
   const [screen, setScreen] = useState("login");
+  const [currentUser, setCurrentUser] = useState(null);
   const [cart, setCart] = useState([]);
 
   const total = cart.reduce((sum, c) => sum + c.qty * c.price, 0);
 
   const resetAll = () => {
     setCart([]);
+    setCurrentUser(null);
     setScreen("login");
   };
 
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+
+    if (user.role === "admin") {
+      setScreen("admin");
+      return;
+    }
+
+    if (user.role === "vendor") {
+      setScreen("vendor");
+      return;
+    }
+
+    setScreen("menu");
+  };
+
+  const handleLogout = () => {
+    setCart([]);
+    setCurrentUser(null);
+    setScreen("login");
+  };
+
+  const showStudentProgress = !["login", "pickup", "admin", "vendor"].includes(screen);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {screen !== "login" && screen !== "pickup" && (
+      {showStudentProgress && (
         <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -61,14 +89,20 @@ export default function App() {
       <div className="flex-1 flex flex-col">
         <div className="flex-1 max-w-4xl w-full mx-auto">
           {screen === "login" && (
-            <LoginScreen onLogin={() => setScreen("menu")} />
+            <LoginScreen onLogin={handleLogin} />
+          )}
+          {screen === "admin" && (
+            <AdminDashboard user={currentUser} onLogout={handleLogout} />
+          )}
+          {screen === "vendor" && (
+            <VendorDashboard user={currentUser} onLogout={handleLogout} />
           )}
           {screen === "menu" && (
             <MenuScreen
               cart={cart}
               onUpdateCart={setCart}
               onCheckout={() => setScreen("review")}
-              onLogout={() => setScreen("login")}
+              onLogout={handleLogout}
             />
           )}
           {screen === "review" && (
