@@ -8,20 +8,11 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
-
-const MOCK_STUDENTS = [
-  { studentId: "STU001", password: "student123", name: "Demo Student", role: "student" },
-  { studentId: "CADT001", password: "campus123", name: "Campus Student", role: "student" },
-];
-
-const MOCK_STAFF = [
-  { email: "admin@campuseats.test", password: "admin123", name: "Campus Admin", role: "admin" },
-  { email: "vendor@campuseats.test", password: "vendor123", name: "Counter B Vendor", role: "vendor" },
-];
+import { fetchJson } from "../lib/api";
 
 export function LoginScreen({ onLogin, onError }) {
   const [loginType, setLoginType] = useState("student");
-  const [studentId, setStudentId] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,8 +22,8 @@ export function LoginScreen({ onLogin, onError }) {
   const [error, setError] = useState("");
 
   const validateStudentLogin = () => {
-    if (!studentId.trim() || !studentPassword.trim()) {
-      setError("Please enter your student ID and portal password.");
+    if (!studentEmail.trim() || !studentPassword.trim()) {
+      setError("Please enter your student email and portal password.");
       return false;
     }
 
@@ -56,21 +47,19 @@ export function LoginScreen({ onLogin, onError }) {
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const student = MOCK_STUDENTS.find(
-        (item) =>
-          item.studentId.toLowerCase() === studentId.trim().toLowerCase() &&
-          item.password === studentPassword,
-      );
+      const data = await fetchJson("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "student",
+          email: studentEmail.trim(),
+          password: studentPassword,
+        }),
+      });
 
-      if (!student) {
-        setError("Invalid student portal credentials.");
-        return;
-      }
-
-      if (onLogin) onLogin(student);
+      if (onLogin) onLogin(data);
     } catch (err) {
-      const errorMessage = err.response?.data?.message || "Student Portal login failed. Please try again.";
+      const errorMessage = err.message || "Student Portal login failed. Please try again.";
       setError(errorMessage);
       if (onError) onError(errorMessage);
     } finally {
@@ -86,21 +75,19 @@ export function LoginScreen({ onLogin, onError }) {
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const staff = MOCK_STAFF.find(
-        (item) =>
-          item.email.toLowerCase() === email.trim().toLowerCase() &&
-          item.password === password,
-      );
+      const data = await fetchJson("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "staff",
+          email: email.trim(),
+          password,
+        }),
+      });
 
-      if (!staff) {
-        setError("Invalid admin or vendor credentials.");
-        return;
-      }
-
-      if (onLogin) onLogin(staff);
+      if (onLogin) onLogin(data);
     } catch (err) {
-      const errorMessage = err.response?.data?.message || "Login failed. Please try again.";
+      const errorMessage = err.message || "Login failed. Please try again.";
       setError(errorMessage);
       if (onError) onError(errorMessage);
     } finally {
@@ -167,12 +154,12 @@ export function LoginScreen({ onLogin, onError }) {
           {loginType === "student" ? (
             <div className="space-y-4">
               <div>
-                <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Student ID</label>
+                <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Student Email</label>
                 <input
-                  type="text"
-                  value={studentId}
+                  type="email"
+                  value={studentEmail}
                   onChange={(e) => {
-                    setStudentId(e.target.value);
+                    setStudentEmail(e.target.value);
                     setError("");
                   }}
                   placeholder="Enter student email"
@@ -224,7 +211,7 @@ export function LoginScreen({ onLogin, onError }) {
                 )}
               </button>
               <p className="text-center text-xs sm:text-sm text-gray-400">
-                Demo student: STU001 / student123.
+                Demo student: student@campuseats.test / student123.
               </p>
             </div>
           ) : (

@@ -34,5 +34,43 @@ Start the backend:
 npm run server
 ```
 
-// asdhaj
-// uhadjslska
+Or start both the frontend and backend in one terminal:
+
+```bash
+npm run dev:all
+```
+
+## Database
+
+The backend uses MySQL through Sequelize. Create a local database that matches your `.env` file:
+
+```sql
+CREATE DATABASE campuseats_db;
+```
+
+Then create/update the tables and insert demo data:
+
+```bash
+npm run db:seed
+```
+
+Core tables:
+
+```txt
+users          students, vendors, and admins
+vendors        vendor stall/profile details
+categories     menu categories
+menu_items     food/drink items sold by vendors
+orders         student orders and pickup status
+order_items    line items for each order
+payments       QR/e-wallet payment records
+feedback       post-pickup ratings
+```
+
+Demo accounts:
+
+```txt
+Student: student@campuseats.test / student123
+Admin:   admin@campuseats.test / admin123
+Vendor:  vendor@campuseats.test / vendor123
+```

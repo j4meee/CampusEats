@@ -13,9 +13,15 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    studentId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      field: "student_id",
+    },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       validate: {
         isEmail: true,
@@ -24,6 +30,16 @@ const User = sequelize.define(
     password: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    role: {
+      type: DataTypes.ENUM("student", "vendor", "admin"),
+      allowNull: false,
+      defaultValue: "student",
+    },
+    status: {
+      type: DataTypes.ENUM("active", "pending", "disabled"),
+      allowNull: false,
+      defaultValue: "active",
     },
   },
   {

@@ -1,23 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Clock, ChevronRight, Plus, Minus, LogOut } from "lucide-react";
-
-const categories = ["All", "Mains", "Snacks", "Drinks", "Desserts"];
-
-const menuItems = [
-  { id: 1, name: "Grilled Chicken Rice", category: "Mains", price: 4.50, time: "8 min", tag: "Popular", emoji: "CH" },
-  { id: 2, name: "Veggie Wrap", category: "Mains", price: 3.80, time: "5 min", tag: "Healthy", emoji: "WR" },
-  { id: 3, name: "Beef Noodles", category: "Mains", price: 5.00, time: "10 min", tag: null, emoji: "ND" },
-  { id: 4, name: "Fish & Chips", category: "Mains", price: 4.20, time: "7 min", tag: null, emoji: "FS" },
-  { id: 5, name: "Spring Rolls (3 pcs)", category: "Snacks", price: 2.50, time: "4 min", tag: "Popular", emoji: "SR" },
-  { id: 6, name: "Nuggets (6 pcs)", category: "Snacks", price: 2.80, time: "5 min", tag: null, emoji: "NG" },
-  { id: 7, name: "Watermelon Juice", category: "Drinks", price: 1.80, time: "2 min", tag: null, emoji: "WJ" },
-  { id: 8, name: "Iced Milo", category: "Drinks", price: 1.50, time: "2 min", tag: "Popular", emoji: "IM" },
-  { id: 9, name: "Chocolate Pudding", category: "Desserts", price: 2.00, time: "3 min", tag: null, emoji: "CP" },
-];
+import { fetchJson } from "../lib/api";
 
 export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
+  const [categories, setCategories] = useState(["All"]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadMenu = async () => {
+      try {
+        const data = await fetchJson("/api/menu");
+
+        setCategories(data.categories);
+        setMenuItems(data.items);
+      } catch (err) {
+        setError(err.message || "Failed to load menu");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMenu();
+  }, []);
 
   const filtered = menuItems.filter(
     (item) =>
@@ -31,7 +39,7 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
     const existing = cart.find((c) => c.id === item.id);
     let updated;
     if (!existing) {
-      updated = [...cart, { id: item.id, name: item.name, price: item.price, qty: 1, emoji: item.emoji }];
+      updated = [...cart, { id: item.id, name: item.name, price: item.price, qty: 1, emoji: item.emoji, vendorId: item.vendorId }];
     } else {
       const newQty = existing.qty + delta;
       updated = newQty <= 0
@@ -163,7 +171,17 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
               </div>
             );
           })}
-          {filtered.length === 0 && (
+          {loading && (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              <p className="text-sm sm:text-base">Loading menu...</p>
+            </div>
+          )}
+          {error && (
+            <div className="col-span-full text-center py-12 text-red-400">
+              <p className="text-sm sm:text-base">{error}</p>
+            </div>
+          )}
+          {!loading && !error && filtered.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-400">
               <p className="text-sm sm:text-base">No meals found</p>
             </div>

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "server": "node server.js"
+    "dev:all": "node scripts/dev-all.js",
+    "server": "node server.js",
+    "db:seed": "node db/seed.js"
   },
   "dependencies": {
     "cors": "2.8.5",

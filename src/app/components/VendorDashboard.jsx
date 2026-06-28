@@ -1,29 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Clock, EyeOff, LogOut, Plus, UtensilsCrossed } from "lucide-react";
-
-const initialMenu = [
-  { id: 1, name: "Grilled Chicken Rice", price: 4.50, status: "Available", sold: 18 },
-  { id: 3, name: "Beef Noodles", price: 5.00, status: "Available", sold: 11 },
-  { id: 5, name: "Spring Rolls (3 pcs)", price: 2.50, status: "Sold Out", sold: 26 },
-];
-
-const orders = [
-  { id: "A-042", student: "STU001", items: "Grilled Chicken Rice x1, Spring Rolls x1", total: 7.00, status: "Preparing" },
-  { id: "A-044", student: "STU001", items: "Beef Noodles x1", total: 5.00, status: "Pending" },
-  { id: "A-045", student: "CADT001", items: "Grilled Chicken Rice x2", total: 9.00, status: "Ready" },
-];
+import { fetchJson } from "../lib/api";
 
 export function VendorDashboard({ user, onLogout }) {
-  const [menu, setMenu] = useState(initialMenu);
+  const [dashboard, setDashboard] = useState({
+    summary: { pendingOrders: 0, readyOrders: 0, menuItems: 0 },
+    menu: [],
+    orders: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const data = await fetchJson(`/api/dashboard/vendor/${user.id}`);
+
+        setDashboard(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.id) loadDashboard();
+  }, [user?.id]);
 
   const toggleAvailability = (id) => {
-    setMenu((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, status: item.status === "Available" ? "Sold Out" : "Available" }
-          : item,
+    setDashboard((current) => ({
+      ...current,
+      menu: current.menu.map((item) =>
+        item.id === id ? { ...item, status: item.status === "Available" ? "Sold Out" : "Available" } : item,
       ),
-    );
+    }));
   };
 
   return (
@@ -48,9 +57,9 @@ export function VendorDashboard({ user, onLogout }) {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <SummaryTile icon={Clock} label="Pending Orders" value="1" />
-          <SummaryTile icon={CheckCircle2} label="Ready Orders" value="1" />
-          <SummaryTile icon={UtensilsCrossed} label="Menu Items" value={String(menu.length)} />
+          <SummaryTile icon={Clock} label="Pending Orders" value={String(dashboard.summary.pendingOrders)} />
+          <SummaryTile icon={CheckCircle2} label="Ready Orders" value={String(dashboard.summary.readyOrders)} />
+          <SummaryTile icon={UtensilsCrossed} label="Menu Items" value={String(dashboard.summary.menuItems)} />
         </div>
 
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -65,7 +74,8 @@ export function VendorDashboard({ user, onLogout }) {
             </button>
           </div>
           <div className="divide-y divide-gray-50">
-            {menu.map((item) => (
+            {loading && <EmptyRow text="Loading menu..." />}
+            {!loading && dashboard.menu.map((item) => (
               <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
@@ -94,12 +104,13 @@ export function VendorDashboard({ user, onLogout }) {
             <p className="text-xs sm:text-sm text-gray-400">Vendor changes order status from pending to ready.</p>
           </div>
           <div className="divide-y divide-gray-50">
-            {orders.map((order) => (
+            {loading && <EmptyRow text="Loading orders..." />}
+            {!loading && dashboard.orders.map((order) => (
               <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[80px_1fr_80px_110px] gap-2 sm:items-center text-sm">
                 <span className="text-gray-900">{order.id}</span>
                 <span className="text-gray-500">{order.items}</span>
                 <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
-                <span className="text-gray-500">{order.status}</span>
+                <span className="text-gray-500">{order.status.replace("_", " ")}</span>
               </div>
             ))}
           </div>
@@ -107,6 +118,10 @@ export function VendorDashboard({ user, onLogout }) {
       </div>
     </div>
   );
+}
+
+function EmptyRow({ text }) {
+  return <div className="px-4 sm:px-5 py-4 text-sm text-gray-400">{text}</div>;
 }
 
 function SummaryTile({ icon: Icon, label, value }) {
