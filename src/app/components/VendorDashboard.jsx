@@ -35,6 +35,41 @@ export function VendorDashboard({ user, onLogout }) {
     }));
   };
 
+  const updateOrderStatus = async (order, status) => {
+    try {
+      const data = await fetchJson(`/api/orders/${order.dbId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      setDashboard((current) => ({
+        ...current,
+        summary: {
+          ...current.summary,
+          pendingOrders: current.orders.filter((item) =>
+            item.id === order.id ? data.order.status === "pending" : item.status === "pending",
+          ).length,
+          readyOrders: current.orders.filter((item) =>
+            item.id === order.id ? data.order.status === "ready" : item.status === "ready",
+          ).length,
+        },
+        orders: current.orders.map((item) =>
+          item.id === order.id ? { ...item, status: data.order.status } : item,
+        ),
+      }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const nextOrderAction = (order) => {
+    if (order.status === "pending") return { label: "Start", status: "preparing" };
+    if (order.status === "preparing") return { label: "Ready", status: "ready" };
+    if (order.status === "ready") return { label: "Picked Up", status: "picked_up" };
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-[#fafaf8]">
       <div className="bg-[#f97316] text-white">
@@ -105,14 +140,29 @@ export function VendorDashboard({ user, onLogout }) {
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading orders..." />}
-            {!loading && dashboard.orders.map((order) => (
-              <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[80px_1fr_80px_110px] gap-2 sm:items-center text-sm">
-                <span className="text-gray-900">{order.id}</span>
-                <span className="text-gray-500">{order.items}</span>
-                <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
-                <span className="text-gray-500">{order.status.replace("_", " ")}</span>
-              </div>
-            ))}
+            {!loading && dashboard.orders.map((order) => {
+              const action = nextOrderAction(order);
+
+              return (
+                <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[90px_1fr_80px_110px_100px] gap-2 sm:items-center text-sm">
+                  <span className="text-gray-900">{order.id}</span>
+                  <span className="text-gray-500">{order.items}</span>
+                  <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
+                  <span className="text-gray-500">{order.status.replace("_", " ")}</span>
+                  {action ? (
+                    <button
+                      type="button"
+                      onClick={() => updateOrderStatus(order, action.status)}
+                      className="rounded-lg bg-[#f97316] px-3 py-2 text-xs text-white hover:bg-orange-600 transition-colors"
+                    >
+                      {action.label}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-300">Done</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

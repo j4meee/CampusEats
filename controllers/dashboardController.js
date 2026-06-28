@@ -2,6 +2,7 @@ import { Category, MenuItem, Order, OrderItem, User, Vendor } from "../model/ind
 
 const formatOrder = (order) => ({
   id: order.orderNumber,
+  dbId: order.id,
   student: order.student?.studentId || order.student?.name || "Student",
   vendor: order.vendor?.stallName || "Vendor",
   total: Number(order.total),

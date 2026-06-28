@@ -1,7 +1,7 @@
 import { Star } from "lucide-react";
 import { useState } from "react";
 
-export function PickupConfirmationScreen({ onDone }) {
+export function PickupConfirmationScreen({ order, onDone }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -14,17 +14,15 @@ export function PickupConfirmationScreen({ onDone }) {
   return (
     <div className="flex flex-col min-h-screen bg-[#fafaf8] items-center justify-center px-4 sm:px-6 text-center">
       <div className="max-w-md w-full">
-        {/* Success animation placeholder */}
         <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5 sm:mb-6">
-          <span className="text-5xl sm:text-6xl">🎉</span>
+          <span className="text-5xl sm:text-6xl">OK</span>
         </div>
 
         <h1 className="text-gray-900 mb-1">Enjoy your meal!</h1>
         <p className="text-gray-500 text-sm sm:text-base mb-8 sm:mb-10">
-          Order <span className="text-gray-700">A-042</span> has been collected. Bon appétit!
+          Order <span className="text-gray-700">{order?.orderNumber || "confirmed"}</span> has been collected.
         </p>
 
-        {/* Rating */}
         {!submitted ? (
           <div className="w-full bg-white rounded-2xl border border-gray-100 px-5 sm:px-6 py-5 sm:py-6 mb-4">
             <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4">
@@ -55,8 +53,8 @@ export function PickupConfirmationScreen({ onDone }) {
             >
               Submit Feedback
             </button>
-            <button 
-              onClick={onDone} 
+            <button
+              onClick={onDone}
               className="w-full text-gray-400 hover:text-gray-600 text-sm sm:text-base mt-2 py-2 transition-colors"
               type="button"
             >
@@ -65,12 +63,12 @@ export function PickupConfirmationScreen({ onDone }) {
           </div>
         ) : (
           <div className="w-full bg-green-50 border border-green-100 rounded-2xl px-5 sm:px-6 py-5 sm:py-6 mb-4">
-            <p className="text-green-600 text-sm sm:text-base">Thanks for your feedback! ✓</p>
+            <p className="text-green-600 text-sm sm:text-base">Thanks for your feedback!</p>
           </div>
         )}
 
         <p className="text-xs sm:text-sm text-gray-400">
-          Save time tomorrow — pre-order starts at 7 AM
+          Save time tomorrow - pre-order starts at 7 AM
         </p>
       </div>
     </div>

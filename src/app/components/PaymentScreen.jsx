@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Wallet, ChevronRight, Lock, QrCode, CheckCircle2, RefreshCw } from "lucide-react";
+import { fetchJson } from "../lib/api";
 
 const paymentMethods = [
   { id: "qr", label: "Scan QR Code", sub: "PayNow, WeChat Pay, GrabPay", icon: QrCode },
   { id: "ewallet", label: "Student E-Wallet", sub: "Linked to your student ID", icon: Wallet },
 ];
 
-export function PaymentScreen({ total, onBack, onConfirm }) {
+export function PaymentScreen({ total, cart, user, specialRequest, onBack, onConfirm }) {
   const [selected, setSelected] = useState("qr");
   const [loading, setLoading] = useState(false);
   const [qrScanned, setQrScanned] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(120);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (selected !== "qr" || qrScanned) return;
@@ -24,17 +26,36 @@ export function PaymentScreen({ total, onBack, onConfirm }) {
     return () => clearInterval(interval);
   }, [selected, qrScanned]);
 
-  const handlePay = () => {
+  const handlePay = async () => {
+    setError("");
+    setLoading(true);
+
     if (selected === "qr") {
       setQrScanned(true);
-      setTimeout(onConfirm, 1200);
-      return;
     }
-    setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const data = await fetchJson("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: user?.id,
+          paymentMethod: selected,
+          specialRequest,
+          items: cart.map((item) => ({
+            menuItemId: item.id,
+            quantity: item.qty,
+          })),
+        }),
+      });
+
+      onConfirm(data.order);
+    } catch (err) {
+      setQrScanned(false);
+      setError(err.message || "Payment failed. Please try again.");
+    } finally {
       setLoading(false);
-      onConfirm();
-    }, 1500);
+    }
   };
 
   const refreshQr = () => {
@@ -73,6 +94,12 @@ export function PaymentScreen({ total, onBack, onConfirm }) {
               <Lock className="w-3 h-3 sm:w-4 sm:h-4" /> Secure payment
             </p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-100 rounded-2xl px-4 sm:px-5 py-3 text-sm sm:text-base text-red-600">
+              {error}
+            </div>
+          )}
 
           {/* Payment methods */}
           <div>
@@ -241,10 +268,11 @@ export function PaymentScreen({ total, onBack, onConfirm }) {
           {selected === "qr" && !qrScanned && qrCountdown > 0 && (
             <button
               onClick={handlePay}
-              className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base flex items-center justify-center gap-2 transition-colors"
+              disabled={loading}
+              className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
             >
               <QrCode className="w-4 h-4 sm:w-5 sm:h-5" />
-              I've scanned the QR code
+              {loading ? "Creating order..." : "I've scanned the QR code"}
             </button>
           )}
           <p className="text-center text-xs sm:text-sm text-gray-400 mt-2">

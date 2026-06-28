@@ -21,11 +21,15 @@ export default function App() {
   const [screen, setScreen] = useState("login");
   const [currentUser, setCurrentUser] = useState(null);
   const [cart, setCart] = useState([]);
+  const [specialRequest, setSpecialRequest] = useState("");
+  const [currentOrder, setCurrentOrder] = useState(null);
 
   const total = cart.reduce((sum, c) => sum + c.qty * c.price, 0);
 
   const resetAll = () => {
     setCart([]);
+    setSpecialRequest("");
+    setCurrentOrder(null);
     setCurrentUser(null);
     setScreen("login");
   };
@@ -48,8 +52,21 @@ export default function App() {
 
   const handleLogout = () => {
     setCart([]);
+    setSpecialRequest("");
+    setCurrentOrder(null);
     setCurrentUser(null);
     setScreen("login");
+  };
+
+  const handleOrderCreated = (order) => {
+    setCurrentOrder(order);
+    setCart([]);
+    setScreen("status");
+  };
+
+  const handlePickupConfirmed = (order) => {
+    setCurrentOrder(order);
+    setScreen("pickup");
   };
 
   const showStudentProgress = !["login", "pickup", "admin", "vendor"].includes(screen);
@@ -110,24 +127,30 @@ export default function App() {
               cart={cart}
               onUpdateCart={setCart}
               onBack={() => setScreen("menu")}
-              onPay={() => setScreen("payment")}
+              onPay={(request) => {
+                setSpecialRequest(request);
+                setScreen("payment");
+              }}
             />
           )}
           {screen === "payment" && (
             <PaymentScreen
               total={total}
+              cart={cart}
+              user={currentUser}
+              specialRequest={specialRequest}
               onBack={() => setScreen("review")}
-              onConfirm={() => setScreen("status")}
+              onConfirm={handleOrderCreated}
             />
           )}
           {screen === "status" && (
             <OrderStatusScreen
-              cart={cart}
-              onPickup={() => setScreen("pickup")}
+              order={currentOrder}
+              onPickup={handlePickupConfirmed}
             />
           )}
           {screen === "pickup" && (
-            <PickupConfirmationScreen onDone={resetAll} />
+            <PickupConfirmationScreen order={currentOrder} onDone={resetAll} />
           )}
         </div>
       </div>
@@ -135,7 +158,7 @@ export default function App() {
       <div className="bg-white border-t border-gray-200 py-3">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <span className="text-xs text-gray-400">
-            Low-fidelity prototype - Student Food Pre-Order System
+            CampusEats - Student Food Pre-Order System
           </span>
         </div>
       </div>
