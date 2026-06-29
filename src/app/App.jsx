@@ -7,6 +7,7 @@ import { OrderStatusScreen } from "./components/OrderStatusScreen";
 import { PickupConfirmationScreen } from "./components/PickupConfirmationScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { VendorDashboard } from "./components/VendorDashboard";
+import { clearAuthSession, getStoredUser } from "./lib/api";
 
 const STEP_LABELS = {
   login: 0,
@@ -18,8 +19,16 @@ const STEP_LABELS = {
 };
 
 export default function App() {
-  const [screen, setScreen] = useState("login");
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser());
+  const [screen, setScreen] = useState(() => {
+    const storedUser = getStoredUser();
+
+    if (storedUser?.role === "admin") return "admin";
+    if (storedUser?.role === "vendor") return "vendor";
+    if (storedUser?.role === "student") return "menu";
+
+    return "login";
+  });
   const [cart, setCart] = useState([]);
   const [specialRequest, setSpecialRequest] = useState("");
   const [currentOrder, setCurrentOrder] = useState(null);
@@ -31,6 +40,7 @@ export default function App() {
     setSpecialRequest("");
     setCurrentOrder(null);
     setCurrentUser(null);
+    clearAuthSession();
     setScreen("login");
   };
 
@@ -55,6 +65,7 @@ export default function App() {
     setSpecialRequest("");
     setCurrentOrder(null);
     setCurrentUser(null);
+    clearAuthSession();
     setScreen("login");
   };
 

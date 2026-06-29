@@ -6,8 +6,11 @@ import {
   getUsers,
   updateUser,
 } from "../controllers/userController.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 
 const router = express.Router();
+
+router.use(requireAuth, requireRole("admin"));
 
 router.get("/", getUsers);
 router.get("/:id", getUserById);

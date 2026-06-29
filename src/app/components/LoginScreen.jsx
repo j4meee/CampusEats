@@ -8,22 +8,42 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
-import { fetchJson } from "../lib/api";
+import { fetchJson, saveAuthSession } from "../lib/api";
 
 export function LoginScreen({ onLogin, onError }) {
   const [loginType, setLoginType] = useState("student");
+  const [studentMode, setStudentMode] = useState("signin");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
+  const [signupName, setSignupName] = useState("");
+  const [signupStudentId, setSignupStudentId] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showStudentPass, setShowStudentPass] = useState(false);
+  const [showSignupPass, setShowSignupPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const validateStudentLogin = () => {
     if (!studentEmail.trim() || !studentPassword.trim()) {
-      setError("Please enter your student email and portal password.");
+      setError("Please enter your student email and password.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateStudentSignup = () => {
+    if (!signupName.trim() || !signupStudentId.trim() || !signupEmail.trim() || !signupPassword.trim()) {
+      setError("Please complete all student account fields.");
+      return false;
+    }
+
+    if (signupPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
       return false;
     }
 
@@ -39,7 +59,7 @@ export function LoginScreen({ onLogin, onError }) {
     return true;
   };
 
-  const handleStudentPortalLogin = async () => {
+  const handleStudentLogin = async () => {
     setError("");
 
     if (!validateStudentLogin()) return;
@@ -57,9 +77,40 @@ export function LoginScreen({ onLogin, onError }) {
         }),
       });
 
-      if (onLogin) onLogin(data);
+      saveAuthSession(data);
+      if (onLogin) onLogin(data.user);
     } catch (err) {
-      const errorMessage = err.message || "Student Portal login failed. Please try again.";
+      const errorMessage = err.message || "Student login failed. Please try again.";
+      setError(errorMessage);
+      if (onError) onError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStudentSignup = async () => {
+    setError("");
+
+    if (!validateStudentSignup()) return;
+
+    setLoading(true);
+
+    try {
+      const data = await fetchJson("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: signupName.trim(),
+          studentId: signupStudentId.trim(),
+          email: signupEmail.trim(),
+          password: signupPassword,
+        }),
+      });
+
+      saveAuthSession(data);
+      if (onLogin) onLogin(data.user);
+    } catch (err) {
+      const errorMessage = err.message || "Account creation failed. Please try again.";
       setError(errorMessage);
       if (onError) onError(errorMessage);
     } finally {
@@ -85,7 +136,8 @@ export function LoginScreen({ onLogin, onError }) {
         }),
       });
 
-      if (onLogin) onLogin(data);
+      saveAuthSession(data);
+      if (onLogin) onLogin(data.user);
     } catch (err) {
       const errorMessage = err.message || "Login failed. Please try again.";
       setError(errorMessage);
@@ -99,7 +151,11 @@ export function LoginScreen({ onLogin, onError }) {
     if (e.key !== "Enter") return;
 
     if (loginType === "student") {
-      handleStudentPortalLogin();
+      if (studentMode === "signin") {
+        handleStudentLogin();
+      } else {
+        handleStudentSignup();
+      }
     } else {
       handleStaffLogin();
     }
@@ -107,6 +163,11 @@ export function LoginScreen({ onLogin, onError }) {
 
   const selectLoginType = (type) => {
     setLoginType(type);
+    setError("");
+  };
+
+  const selectStudentMode = (mode) => {
+    setStudentMode(mode);
     setError("");
   };
 
@@ -153,45 +214,137 @@ export function LoginScreen({ onLogin, onError }) {
 
           {loginType === "student" ? (
             <div className="space-y-4">
-              <div>
-                <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Student Email</label>
-                <input
-                  type="email"
-                  value={studentEmail}
-                  onChange={(e) => {
-                    setStudentEmail(e.target.value);
-                    setError("");
-                  }}
-                  placeholder="Enter student email"
-                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
-                />
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-white border border-gray-200 p-1">
+                <button
+                  type="button"
+                  onClick={() => selectStudentMode("signin")}
+                  className={`rounded-lg py-2.5 text-sm transition-colors ${
+                    studentMode === "signin" ? "bg-orange-100 text-[#f97316]" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectStudentMode("signup")}
+                  className={`rounded-lg py-2.5 text-sm transition-colors ${
+                    studentMode === "signup" ? "bg-orange-100 text-[#f97316]" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Create account
+                </button>
               </div>
 
-              <div>
-                <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Portal Password</label>
-                <div className="relative">
-                  <input
-                    type={showStudentPass ? "text" : "password"}
-                    value={studentPassword}
-                    onChange={(e) => {
-                      setStudentPassword(e.target.value);
-                      setError("");
-                    }}
-                    placeholder="Enter student password"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 pr-11 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
-                  />
-                  <button
-                    onClick={() => setShowStudentPass((value) => !value)}
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showStudentPass ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
-                  </button>
-                </div>
-              </div>
+              {studentMode === "signin" ? (
+                <>
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Email</label>
+                    <input
+                      type="email"
+                      value={studentEmail}
+                      onChange={(e) => {
+                        setStudentEmail(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="Enter your email"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showStudentPass ? "text" : "password"}
+                        value={studentPassword}
+                        onChange={(e) => {
+                          setStudentPassword(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="Enter your password"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 pr-11 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                      />
+                      <button
+                        onClick={() => setShowStudentPass((value) => !value)}
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showStudentPass ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Full Name</label>
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(e) => {
+                        setSignupName(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="Enter your name"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Student ID</label>
+                    <input
+                      type="text"
+                      value={signupStudentId}
+                      onChange={(e) => {
+                        setSignupStudentId(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="Enter your student ID"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Email</label>
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => {
+                        setSignupEmail(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="Enter your email"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showSignupPass ? "text" : "password"}
+                        value={signupPassword}
+                        onChange={(e) => {
+                          setSignupPassword(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="Create a password"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 sm:py-3.5 pr-11 text-sm sm:text-base text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                      />
+                      <button
+                        onClick={() => setShowSignupPass((value) => !value)}
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showSignupPass ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button
-                onClick={handleStudentPortalLogin}
+                onClick={studentMode === "signin" ? handleStudentLogin : handleStudentSignup}
                 disabled={loading}
                 className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
               >
@@ -201,18 +354,25 @@ export function LoginScreen({ onLogin, onError }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
                     </svg>
-                    Checking portal...
+                    {studentMode === "signin" ? "Signing in..." : "Creating account..."}
                   </>
                 ) : (
                   <>
-                    Sign in 
+                    {studentMode === "signin" ? "Sign in" : "Create account"}
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </button>
-              <p className="text-center text-xs sm:text-sm text-gray-400">
-                Demo student: student@campuseats.test / student123.
-              </p>
+
+              {studentMode === "signin" ? (
+                <p className="text-center text-xs sm:text-sm text-gray-400">
+                  Demo student: student@campuseats.test / student123.
+                </p>
+              ) : (
+                <p className="text-center text-xs sm:text-sm text-gray-400">
+                  Student accounts are created as active CampusEats users.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -303,7 +463,7 @@ export function LoginScreen({ onLogin, onError }) {
 
           <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-400 pt-2">
             {loginType === "student" ? <Building className="w-4 h-4" /> : <Store className="w-4 h-4" />}
-            <span>{loginType === "student" ? "Use your official campus account." : "No public vendor registration."}</span>
+            <span>{loginType === "student" ? "Sign in with your CampusEats account." : "No public vendor registration."}</span>
           </div>
 
           <p className="text-center text-xs sm:text-sm text-gray-400 pt-4">

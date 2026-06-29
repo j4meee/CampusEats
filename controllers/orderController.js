@@ -59,16 +59,23 @@ const findOrderById = (id) =>
     ],
   });
 
+const canAccessOrder = async (user, order) => {
+  if (user.role === "admin") return true;
+  if (user.role === "student") return order.studentId === user.id;
+
+  if (user.role === "vendor") {
+    const vendor = await Vendor.findOne({ where: { userId: user.id } });
+    return vendor?.id === order.vendorId;
+  }
+
+  return false;
+};
+
 export const createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { studentId, items, paymentMethod = "qr", specialRequest } = req.body;
-
-    if (!studentId) {
-      await transaction.rollback();
-      return res.status(400).json({ message: "Student is required" });
-    }
+    const { items, paymentMethod = "qr", specialRequest } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
       await transaction.rollback();
@@ -80,7 +87,7 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid payment method" });
     }
 
-    const student = await User.findByPk(studentId, { transaction });
+    const student = await User.findByPk(req.user.id, { transaction });
 
     if (!student || student.role !== "student" || student.status !== "active") {
       await transaction.rollback();
@@ -194,6 +201,10 @@ export const getOrderById = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    if (!(await canAccessOrder(req.user, order))) {
+      return res.status(403).json({ message: "You do not have permission to view this order" });
+    }
+
     res.status(200).json({ order: formatOrder(order) });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch order", error: error.message });
@@ -213,6 +224,18 @@ export const updateOrderStatus = async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (!(await canAccessOrder(req.user, order))) {
+      return res.status(403).json({ message: "You do not have permission to update this order" });
+    }
+
+    if (req.user.role === "student" && status !== "picked_up") {
+      return res.status(403).json({ message: "Students can only confirm pickup" });
+    }
+
+    if (req.user.role === "vendor" && !["preparing", "ready", "picked_up", "cancelled"].includes(status)) {
+      return res.status(403).json({ message: "Vendors cannot set that status" });
     }
 
     await order.update({

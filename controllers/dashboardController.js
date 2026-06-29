@@ -57,6 +57,10 @@ export const getAdminDashboard = async (_req, res) => {
 
 export const getVendorDashboard = async (req, res) => {
   try {
+    if (req.user.role === "vendor" && Number(req.params.userId) !== req.user.id) {
+      return res.status(403).json({ message: "You do not have permission to view this vendor dashboard" });
+    }
+
     const vendor = await Vendor.findOne({ where: { userId: req.params.userId } });
 
     if (!vendor) {

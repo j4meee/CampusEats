@@ -8,12 +8,14 @@
     "dev": "vite",
     "dev:all": "node scripts/dev-all.js",
     "server": "node server.js",
+    "server:dev": "nodemon server.js",
     "db:seed": "node db/seed.js"
   },
   "dependencies": {
     "cors": "2.8.5",
     "dotenv": "16.4.7",
     "express": "4.21.2",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "0.487.0",
     "mysql2": "3.11.5",
     "react": "18.3.1",
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "nodemon": "^3.1.14",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   }

@@ -39,7 +39,6 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentId: user?.id,
           paymentMethod: selected,
           specialRequest,
           items: cart.map((item) => ({
