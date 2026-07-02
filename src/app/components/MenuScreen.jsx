@@ -1,0 +1,214 @@
+import { useEffect, useState } from "react";
+import { Search, Clock, ChevronRight, Plus, Minus, LogOut } from "lucide-react";
+import { fetchJson } from "../lib/api";
+
+export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [categories, setCategories] = useState(["All"]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadMenu = async () => {
+      try {
+        const data = await fetchJson("/api/menu");
+
+        setCategories(data.categories);
+        setMenuItems(data.items);
+      } catch (err) {
+        setError(err.message || "Failed to load menu");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMenu();
+  }, []);
+
+  const filtered = menuItems.filter(
+    (item) =>
+      (activeCategory === "All" || item.category === activeCategory) &&
+      item.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getQty = (id) => cart.find((c) => c.id === id)?.qty ?? 0;
+
+  const updateItem = (item, delta) => {
+    const existing = cart.find((c) => c.id === item.id);
+    let updated;
+    if (!existing) {
+      updated = [...cart, { id: item.id, name: item.name, price: item.price, qty: 1, emoji: item.emoji, vendorId: item.vendorId }];
+    } else {
+      const newQty = existing.qty + delta;
+      updated = newQty <= 0
+        ? cart.filter((c) => c.id !== item.id)
+        : cart.map((c) => c.id === item.id ? { ...c, qty: newQty } : c);
+    }
+    onUpdateCart(updated);
+  };
+
+  const handleLogout = () => {
+    onUpdateCart([]);
+    if (onLogout) onLogout();
+  };
+
+  const totalItems = cart.reduce((sum, c) => sum + c.qty, 0);
+  const totalPrice = cart.reduce((sum, c) => sum + c.qty * c.price, 0);
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#fafaf8]">
+      <div className="bg-[#f97316] px-4 sm:px-6 pt-6 sm:pt-8 pb-5 sm:pb-6 text-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="text-orange-100 text-sm sm:text-base">Good afternoon</p>
+              <h1 className="text-white">What are you having today?</h1>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              title="Logout"
+              type="button"
+            >
+              <LogOut className="w-5 h-5 text-orange-200" />
+            </button>
+          </div>
+
+          <div className="mt-3 sm:mt-4 flex items-center bg-white/20 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 gap-2">
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white/70 shrink-0" />
+            <input
+              className="bg-transparent text-white placeholder-white/60 text-sm sm:text-base flex-1 outline-none"
+              placeholder="Search meals..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-200 shrink-0" />
+            <p className="text-xs sm:text-sm text-orange-100">
+              Order now - ready in as fast as <span className="text-white font-medium">5-10 min</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-sm sm:text-base transition-colors ${
+                activeCategory === cat
+                  ? "bg-[#f97316] text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              type="button"
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 px-4 sm:px-6 pb-32">
+        <div className="max-w-4xl mx-auto py-4 sm:py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {filtered.map((item) => {
+            const qty = getQty(item.id);
+            return (
+              <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-orange-50 text-[#f97316] font-semibold flex items-center justify-center text-sm sm:text-base shrink-0">
+                  {item.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
+                    {item.tag && (
+                      <span className="shrink-0 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                        {item.tag}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#f97316] text-sm sm:text-base">${item.price.toFixed(2)}</span>
+                    <span className="text-gray-300">.</span>
+                    <span className="text-gray-400 text-xs sm:text-sm flex items-center gap-0.5">
+                      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {item.time}
+                    </span>
+                  </div>
+                </div>
+
+                {qty === 0 ? (
+                  <button
+                    onClick={() => updateItem(item, 1)}
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center shrink-0 transition-colors"
+                    type="button"
+                  >
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => updateItem(item, -1)}
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                      type="button"
+                    >
+                      <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                    <span className="w-4 sm:w-5 text-center text-sm sm:text-base text-gray-900">{qty}</span>
+                    <button
+                      onClick={() => updateItem(item, 1)}
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center transition-colors"
+                      type="button"
+                    >
+                      <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {loading && (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              <p className="text-sm sm:text-base">Loading menu...</p>
+            </div>
+          )}
+          {error && (
+            <div className="col-span-full text-center py-12 text-red-400">
+              <p className="text-sm sm:text-base">{error}</p>
+            </div>
+          )}
+          {!loading && !error && filtered.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              <p className="text-sm sm:text-base">No meals found</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {totalItems > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 sm:p-6 shadow-lg">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={onCheckout}
+              className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-lg transition-colors"
+              type="button"
+            >
+              <div className="flex items-center gap-2">
+                <span className="bg-white/25 rounded-lg px-2 py-0.5 text-sm sm:text-base">{totalItems}</span>
+                <span className="text-sm sm:text-base">View Order</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm sm:text-base">${totalPrice.toFixed(2)}</span>
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

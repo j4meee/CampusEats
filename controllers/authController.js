@@ -1,0 +1,103 @@
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+import { User, Vendor } from "../model/index.js";
+
+dotenv.config();
+
+const jwtSecret = process.env.JWT_SECRET || "campus-eats-dev-secret-change-me";
+
+const publicUser = (user) => {
+  const { password: _password, ...safeUser } = user.toJSON();
+  return safeUser;
+};
+
+const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
+
+const createToken = (user) =>
+  jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+      email: user.email,
+    },
+    jwtSecret,
+    { expiresIn: "7d" },
+  );
+
+const authResponse = (user) => ({
+  user: publicUser(user),
+  token: createToken(user),
+});
+
+export const login = async (req, res) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const { password, role } = req.body;
+    const where = { email };
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({
+      where,
+      include: [{ model: Vendor, as: "vendorProfile" }],
+    });
+
+    if (!user || user.password !== password || user.status !== "active") {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (role && user.role !== role && !(role === "staff" && ["admin", "vendor"].includes(user.role))) {
+      return res.status(403).json({ message: "This account cannot use that login type" });
+    }
+
+    res.status(200).json(authResponse(user));
+  } catch (error) {
+    res.status(500).json({ message: "Login failed", error: error.message });
+  }
+};
+
+export const registerStudent = async (req, res) => {
+  try {
+    const name = req.body.name?.trim();
+    const studentId = req.body.studentId?.trim();
+    const email = req.body.email?.trim().toLowerCase();
+    const { password } = req.body;
+
+    if (!name || !studentId || !email || !password) {
+      return res.status(400).json({ message: "Name, student ID, email, and password are required" });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const existingEmail = await User.findOne({ where: { email } });
+    if (existingEmail) {
+      return res.status(409).json({ message: "Email is already registered" });
+    }
+
+    const existingStudentId = await User.findOne({ where: { studentId } });
+    if (existingStudentId) {
+      return res.status(409).json({ message: "Student ID is already registered" });
+    }
+
+    const user = await User.create({
+      name,
+      studentId,
+      email,
+      password,
+      role: "student",
+      status: "active",
+    });
+
+    res.status(201).json(authResponse(user));
+  } catch (error) {
+    res.status(500).json({ message: "Registration failed", error: error.message });
+  }
+};
