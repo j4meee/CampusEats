@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import { User, Vendor } from "../model/index.js";
@@ -29,6 +30,22 @@ const authResponse = (user) => ({
   token: createToken(user),
 });
 
+const isHashedPassword = (password) => password?.startsWith("$2a$") || password?.startsWith("$2b$");
+
+const verifyPassword = async (plainPassword, user) => {
+  if (isHashedPassword(user.password)) {
+    return bcrypt.compare(plainPassword, user.password);
+  }
+
+  const matchesLegacyPassword = user.password === plainPassword;
+
+  if (matchesLegacyPassword) {
+    await user.update({ password: await bcrypt.hash(plainPassword, 12) });
+  }
+
+  return matchesLegacyPassword;
+};
+
 export const login = async (req, res) => {
   try {
     const email = req.body.email?.trim().toLowerCase();
@@ -44,7 +61,7 @@ export const login = async (req, res) => {
       include: [{ model: Vendor, as: "vendorProfile" }],
     });
 
-    if (!user || user.password !== password || user.status !== "active") {
+    if (!user || user.status !== "active" || !(await verifyPassword(password, user))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -91,7 +108,7 @@ export const registerStudent = async (req, res) => {
       name,
       studentId,
       email,
-      password,
+      password: await bcrypt.hash(password, 12),
       role: "student",
       status: "active",
     });
@@ -99,5 +116,40 @@ export const registerStudent = async (req, res) => {
     res.status(201).json(authResponse(user));
   } catch (error) {
     res.status(500).json({ message: "Registration failed", error: error.message });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const { password, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and new password are required" });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findOne({ where: { email } });
+
+    if (!user || user.status !== "active") {
+      return res.status(404).json({ message: "No active account found for that email" });
+    }
+
+    if (role === "staff" && !["admin", "vendor"].includes(user.role)) {
+      return res.status(403).json({ message: "This account cannot use staff password reset" });
+    }
+
+    await user.update({ password: await bcrypt.hash(password, 12) });
+
+    res.status(200).json({ message: "Password updated. Please sign in with your new password." });
+  } catch (error) {
+    res.status(500).json({ message: "Password reset failed", error: error.message });
   }
 };

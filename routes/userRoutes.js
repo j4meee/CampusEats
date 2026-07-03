@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createUser,
+  createVendorUser,
   deleteUser,
   getUserById,
   getUsers,
@@ -15,6 +16,7 @@ router.use(requireAuth, requireRole("admin"));
 router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.post("/", createUser);
+router.post("/vendors", createVendorUser);
 router.put("/:id", updateUser);
 router.delete("/:id", deleteUser);
 

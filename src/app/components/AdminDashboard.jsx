@@ -9,22 +9,64 @@ export function AdminDashboard({ user, onLogout }) {
     orders: [],
   });
   const [loading, setLoading] = useState(true);
+  const [showVendorForm, setShowVendorForm] = useState(false);
+  const [vendorForm, setVendorForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    stallName: "",
+    pickupLocation: "",
+  });
+  const [vendorError, setVendorError] = useState("");
+  const [savingVendor, setSavingVendor] = useState(false);
+
+  const loadDashboard = async () => {
+    try {
+      const data = await fetchJson("/api/dashboard/admin");
+
+      setDashboard(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const data = await fetchJson("/api/dashboard/admin");
-
-        setDashboard(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadDashboard();
   }, []);
+
+  const updateVendorForm = (field, value) => {
+    setVendorForm((current) => ({ ...current, [field]: value }));
+    setVendorError("");
+  };
+
+  const handleCreateVendor = async () => {
+    setVendorError("");
+    setSavingVendor(true);
+
+    try {
+      await fetchJson("/api/users/vendors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vendorForm),
+      });
+
+      setVendorForm({
+        name: "",
+        email: "",
+        password: "",
+        stallName: "",
+        pickupLocation: "",
+      });
+      setShowVendorForm(false);
+      await loadDashboard();
+    } catch (error) {
+      setVendorError(error.message || "Failed to create vendor.");
+    } finally {
+      setSavingVendor(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#fafaf8]">
@@ -58,11 +100,80 @@ export function AdminDashboard({ user, onLogout }) {
               <h2 className="text-gray-900">Vendor Accounts</h2>
               <p className="text-xs sm:text-sm text-gray-400">Admin creates vendor accounts. Vendors cannot self-register.</p>
             </div>
-            <button type="button" className="shrink-0 bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors">
+            <button
+              type="button"
+              onClick={() => setShowVendorForm((value) => !value)}
+              className="shrink-0 bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               Add Vendor
             </button>
           </div>
+          {showVendorForm && (
+            <div className="px-4 sm:px-5 py-4 border-b border-gray-100 bg-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Owner Name"
+                  value={vendorForm.name}
+                  onChange={(value) => updateVendorForm("name", value)}
+                  placeholder="Vendor owner name"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={vendorForm.email}
+                  onChange={(value) => updateVendorForm("email", value)}
+                  placeholder="vendor@example.com"
+                />
+                <Input
+                  label="Temporary Password"
+                  type="password"
+                  value={vendorForm.password}
+                  onChange={(value) => updateVendorForm("password", value)}
+                  placeholder="Create a password"
+                />
+                <Input
+                  label="Stall Name"
+                  value={vendorForm.stallName}
+                  onChange={(value) => updateVendorForm("stallName", value)}
+                  placeholder="Counter A"
+                />
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Pickup Location"
+                    value={vendorForm.pickupLocation}
+                    onChange={(value) => updateVendorForm("pickupLocation", value)}
+                    placeholder="Block A Canteen - Counter A"
+                  />
+                </div>
+              </div>
+              {vendorError && (
+                <p className="mt-3 text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {vendorError}
+                </p>
+              )}
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVendorForm(false);
+                    setVendorError("");
+                  }}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateVendor}
+                  disabled={savingVendor}
+                  className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2 text-sm disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
+                >
+                  {savingVendor ? "Creating..." : "Create Vendor"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading vendors..." />}
             {!loading && dashboard.vendors.map((vendor) => (
@@ -101,6 +212,21 @@ export function AdminDashboard({ user, onLogout }) {
         </section>
       </div>
     </div>
+  );
+}
+
+function Input({ label, type = "text", value, onChange, placeholder }) {
+  return (
+    <label className="block">
+      <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+      />
+    </label>
   );
 }
 
