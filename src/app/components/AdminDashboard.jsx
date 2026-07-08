@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LogOut, Plus, Store, Users, ClipboardList, BarChart3, Trash2, UserRound } from "lucide-react";
 import { fetchJson } from "../lib/api";
+import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
 export function AdminDashboard({ user, onLogout, onProfile }) {
   const [dashboard, setDashboard] = useState({
@@ -151,6 +152,11 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
           <SummaryTile icon={ClipboardList} label="Orders Today" value={String(dashboard.summary.ordersToday)} />
           <SummaryTile icon={BarChart3} label="Sales" value={`$${dashboard.summary.sales.toFixed(2)}`} />
         </div>
+
+        <WeeklyMenuManager
+          title="Weekly Menu"
+          subtitle="Choose up to 10 active menu items for students. Admin can manage all vendors."
+        />
 
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">

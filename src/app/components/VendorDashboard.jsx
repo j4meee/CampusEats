@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock, EyeOff, LogOut, Plus, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Clock, LogOut, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
+import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
 export function VendorDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState({
@@ -25,15 +26,6 @@ export function VendorDashboard({ user, onLogout }) {
 
     if (user?.id) loadDashboard();
   }, [user?.id]);
-
-  const toggleAvailability = (id) => {
-    setDashboard((current) => ({
-      ...current,
-      menu: current.menu.map((item) =>
-        item.id === id ? { ...item, status: item.status === "Available" ? "Sold Out" : "Available" } : item,
-      ),
-    }));
-  };
 
   const updateOrderStatus = async (order, status) => {
     try {
@@ -130,41 +122,10 @@ export function VendorDashboard({ user, onLogout }) {
           </div>
         </section>
 
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-gray-900">My Menu</h2>
-              <p className="text-xs sm:text-sm text-gray-400">Update food availability for students.</p>
-            </div>
-            <button type="button" className="shrink-0 bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors">
-              <Plus className="w-4 h-4" />
-              Add Item
-            </button>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {loading && <EmptyRow text="Loading menu..." />}
-            {!loading && dashboard.menu.map((item) => (
-              <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
-                  <p className="text-xs sm:text-sm text-gray-400">${item.price.toFixed(2)} - Sold today: {item.sold}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleAvailability(item.id)}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-xs sm:text-sm flex items-center gap-2 transition-colors ${
-                    item.status === "Available"
-                      ? "bg-green-50 text-green-600 hover:bg-green-100"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
-                >
-                  {item.status === "Available" ? <CheckCircle2 className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  {item.status}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+        <WeeklyMenuManager
+          title="My Weekly Menu"
+          subtitle="Choose up to 10 of your items to show to students this week."
+        />
       </div>
     </div>
   );
