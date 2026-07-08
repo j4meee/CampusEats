@@ -16,6 +16,7 @@ export const getAdminDashboard = async (_req, res) => {
   try {
     const [vendors, orders] = await Promise.all([
       Vendor.findAll({
+        where: { status: ["active", "pending"] },
         include: [{ model: User, as: "user", attributes: ["email"] }],
         order: [["createdAt", "DESC"]],
       }),

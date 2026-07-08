@@ -75,6 +75,82 @@ export const login = async (req, res) => {
   }
 };
 
+export const getCurrentUser = async (req, res) => {
+  res.status(200).json({ user: publicUser(req.user) });
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const name = req.body.name?.trim();
+    const email = req.body.email?.trim().toLowerCase();
+    const studentId = req.body.studentId?.trim();
+
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name and email are required" });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    if (req.user.role === "student" && !studentId) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    const existingEmail = await User.findOne({ where: { email } });
+    if (existingEmail && existingEmail.id !== req.user.id) {
+      return res.status(409).json({ message: "Email is already registered" });
+    }
+
+    if (req.user.role === "student" && studentId) {
+      const existingStudentId = await User.findOne({ where: { studentId } });
+      if (existingStudentId && existingStudentId.id !== req.user.id) {
+        return res.status(409).json({ message: "Student ID is already registered" });
+      }
+    }
+
+    const updateData = {
+      name,
+      email,
+    };
+
+    if (req.user.role === "student") {
+      updateData.studentId = studentId;
+    }
+
+    await req.user.update(updateData);
+
+    res.status(200).json({ user: publicUser(req.user) });
+  } catch (error) {
+    res.status(500).json({ message: "Profile update failed", error: error.message });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    if (!user || !(await verifyPassword(currentPassword, user))) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    await user.update({ password: await bcrypt.hash(newPassword, 12) });
+
+    res.status(200).json({ message: "Password changed successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Password change failed", error: error.message });
+  }
+};
+
 export const registerStudent = async (req, res) => {
   try {
     const name = req.body.name?.trim();

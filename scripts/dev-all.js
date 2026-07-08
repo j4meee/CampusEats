@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 const processes = [
-  { name: "api", args: ["run", "server"] },
+  { name: "api", args: ["run", "server:dev"] },
   { name: "web", args: ["run", "dev"] },
 ];
 

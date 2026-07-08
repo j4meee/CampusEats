@@ -27,6 +27,17 @@ app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
 
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  res.status(error.status || 500).json({
+    message: error.message || "Internal server error",
+  });
+});
+
 const startServer = async () => {
   try {
     await sequelize.authenticate();

@@ -50,13 +50,28 @@ const findOrderById = (id) =>
   Order.findByPk(id, {
     include: [
       { model: Vendor, as: "vendor", attributes: ["id", "name", "stallName", "pickupLocation"] },
-      { model: Payment, as: "payment", attributes: ["method", "status", "amount", "paidAt"] },
+      { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
       {
         model: OrderItem,
         as: "items",
         include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel"] }],
       },
     ],
+  });
+
+const findStudentOrders = (studentId) =>
+  Order.findAll({
+    where: { studentId },
+    include: [
+      { model: Vendor, as: "vendor", attributes: ["id", "name", "stallName", "pickupLocation"] },
+      { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
+      {
+        model: OrderItem,
+        as: "items",
+        include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel"] }],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
   });
 
 const canAccessOrder = async (user, order) => {
@@ -190,6 +205,90 @@ export const createOrder = async (req, res) => {
       await transaction.rollback();
     }
     res.status(500).json({ message: "Failed to create order", error: error.message });
+  }
+};
+
+export const getStudentOrderHistory = async (req, res) => {
+  try {
+    const orders = await findStudentOrders(req.user.id);
+
+    res.status(200).json({ orders: orders.map(formatOrder) });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch order history", error: error.message });
+  }
+};
+
+export const getStudentPaymentHistory = async (req, res) => {
+  try {
+    const orders = await findStudentOrders(req.user.id);
+
+    res.status(200).json({
+      payments: orders
+        .filter((order) => order.payment)
+        .map((order) => ({
+          id: order.payment.id,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          method: order.payment.method,
+          status: order.payment.status,
+          amount: Number(order.payment.amount),
+          paidAt: order.payment.paidAt,
+          vendor: order.vendor?.stallName || "Vendor",
+        })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch payment history", error: error.message });
+  }
+};
+
+export const getStudentNotifications = async (req, res) => {
+  try {
+    const orders = await findStudentOrders(req.user.id);
+    const notifications = orders.flatMap((order) => {
+      const vendor = order.vendor?.stallName || "vendor";
+      const base = [
+        {
+          id: `${order.id}-confirmed`,
+          type: "confirmation",
+          title: "Order confirmed",
+          message: `Order ${order.orderNumber} was received by ${vendor}.`,
+          createdAt: order.createdAt,
+          orderNumber: order.orderNumber,
+        },
+      ];
+
+      if (["preparing", "ready", "picked_up"].includes(order.status)) {
+        base.push({
+          id: `${order.id}-preparing`,
+          type: "preparing",
+          title: "Food preparation update",
+          message: `${vendor} is preparing order ${order.orderNumber}.`,
+          createdAt: order.updatedAt,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      if (["ready", "picked_up"].includes(order.status)) {
+        base.push({
+          id: `${order.id}-ready`,
+          type: "ready",
+          title: "Food ready",
+          message: `Order ${order.orderNumber} is ready for pickup.`,
+          createdAt: order.updatedAt,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      return base;
+    });
+
+    res.status(200).json({
+      notifications: notifications
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 20),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch notifications", error: error.message });
   }
 };
 

@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import sequelize from "../db/database.js";
-import { User, Vendor } from "../model/index.js";
+import { MenuItem, Order, User, Vendor } from "../model/index.js";
 
 export const getUsers = async (_req, res) => {
   try {
@@ -115,6 +115,59 @@ export const createVendorUser = async (req, res) => {
     }
 
     res.status(500).json({ message: "Failed to create vendor", error: error.message });
+  }
+};
+
+export const deleteVendorUser = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const vendor = await Vendor.findByPk(req.params.id, {
+      include: [{ model: User, as: "user" }],
+      transaction,
+    });
+
+    if (!vendor) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const orderCount = await Order.count({
+      where: { vendorId: vendor.id },
+      transaction,
+    });
+
+    if (orderCount > 0) {
+      await Promise.all([
+        vendor.update({ status: "disabled" }, { transaction }),
+        vendor.user?.update({ status: "disabled" }, { transaction }),
+        MenuItem.update(
+          { isAvailable: false },
+          { where: { vendorId: vendor.id }, transaction },
+        ),
+      ]);
+
+      await transaction.commit();
+      return res.status(200).json({
+        message: "Vendor has order history, so the account was disabled instead of permanently deleted.",
+      });
+    }
+
+    await MenuItem.destroy({ where: { vendorId: vendor.id }, transaction });
+    await vendor.destroy({ transaction });
+
+    if (vendor.user) {
+      await vendor.user.destroy({ transaction });
+    }
+
+    await transaction.commit();
+    return res.status(200).json({ message: "Vendor deleted successfully." });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
+    return res.status(500).json({ message: "Failed to delete vendor", error: error.message });
   }
 };
 

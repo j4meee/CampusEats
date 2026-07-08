@@ -26,6 +26,8 @@ export const getMenu = async (_req, res) => {
         prepTimeMinutes: item.prepTimeMinutes,
         tag: item.tag,
         emoji: item.imageLabel,
+        description: item.description,
+        vendor: item.vendor?.stallName,
         pickupLocation: item.vendor?.pickupLocation,
       })),
     });

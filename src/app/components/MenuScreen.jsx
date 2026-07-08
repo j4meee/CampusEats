@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Search, Clock, ChevronRight, Plus, Minus, LogOut } from "lucide-react";
+import { Search, Clock, ChevronRight, Plus, Minus, LogOut, User, History, X, Info } from "lucide-react";
 import { fetchJson } from "../lib/api";
 
-export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
+export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile, onActivity }) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [categories, setCategories] = useState(["All"]);
   const [menuItems, setMenuItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -66,14 +67,32 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
               <p className="text-orange-100 text-sm sm:text-base">Good afternoon</p>
               <h1 className="text-white">What are you having today?</h1>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              title="Logout"
-              type="button"
-            >
-              <LogOut className="w-5 h-5 text-orange-200" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onActivity}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Order history"
+                type="button"
+              >
+                <History className="w-5 h-5 text-orange-100" />
+              </button>
+              <button
+                onClick={onProfile}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Profile"
+                type="button"
+              >
+                <User className="w-5 h-5 text-orange-100" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Logout"
+                type="button"
+              >
+                <LogOut className="w-5 h-5 text-orange-100" />
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 sm:mt-4 flex items-center bg-white/20 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 gap-2">
@@ -120,12 +139,22 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
             const qty = getQty(item.id);
             return (
               <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-orange-50 text-[#f97316] font-semibold flex items-center justify-center text-sm sm:text-base shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedItem(item)}
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-orange-50 text-[#f97316] font-semibold flex items-center justify-center text-sm sm:text-base shrink-0"
+                >
                   {item.emoji}
-                </div>
+                </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItem(item)}
+                      className="text-left text-sm sm:text-base text-gray-900 truncate hover:text-[#f97316] transition-colors"
+                    >
+                      {item.name}
+                    </button>
                     {item.tag && (
                       <span className="shrink-0 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
                         {item.tag}
@@ -140,6 +169,15 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
                     </span>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedItem(item)}
+                  className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-400 flex items-center justify-center shrink-0 transition-colors"
+                  title="Food details"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
 
                 {qty === 0 ? (
                   <button
@@ -209,6 +247,92 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout }) {
           </div>
         </div>
       )}
+
+      {selectedItem && (
+        <FoodDetailModal
+          item={selectedItem}
+          qty={getQty(selectedItem.id)}
+          onClose={() => setSelectedItem(null)}
+          onUpdate={(delta) => updateItem(selectedItem, delta)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FoodDetailModal({ item, qty, onClose, onUpdate }) {
+  return (
+    <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center px-4 py-4">
+      <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-orange-50 px-5 py-5 flex items-start gap-4">
+          <div className="w-16 h-16 rounded-xl bg-white text-[#f97316] font-semibold flex items-center justify-center text-lg shrink-0">
+            {item.emoji}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-lg text-gray-900">{item.name}</p>
+            <p className="text-sm text-gray-500">{item.category} - {item.vendor || "Campus vendor"}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-white hover:bg-gray-50 flex items-center justify-center text-gray-500 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            {item.description || "Freshly prepared by the vendor and ready for campus pickup."}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <DetailTile label="Price" value={`$${item.price.toFixed(2)}`} />
+            <DetailTile label="Ready In" value={item.time} />
+            <DetailTile label="Pickup" value={item.pickupLocation || "Pickup counter"} wide />
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-gray-500">Quantity</span>
+            {qty === 0 ? (
+              <button
+                type="button"
+                onClick={() => onUpdate(1)}
+                className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2 text-sm flex items-center gap-2 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add to Cart
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onUpdate(-1)}
+                  className="w-9 h-9 rounded-full border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                >
+                  <Minus className="w-4 h-4 text-gray-500" />
+                </button>
+                <span className="w-6 text-center text-gray-900">{qty}</span>
+                <button
+                  type="button"
+                  onClick={() => onUpdate(1)}
+                  className="w-9 h-9 rounded-full bg-[#f97316] hover:bg-orange-600 flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailTile({ label, value, wide = false }) {
+  return (
+    <div className={`bg-gray-50 rounded-xl px-3 py-3 ${wide ? "col-span-2" : ""}`}>
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-sm text-gray-800 mt-0.5">{value}</p>
     </div>
   );
 }

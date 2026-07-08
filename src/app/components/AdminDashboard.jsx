@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { LogOut, Plus, Store, Users, ClipboardList, BarChart3 } from "lucide-react";
+import { LogOut, Plus, Store, Users, ClipboardList, BarChart3, Trash2, UserRound } from "lucide-react";
 import { fetchJson } from "../lib/api";
 
-export function AdminDashboard({ user, onLogout }) {
+export function AdminDashboard({ user, onLogout, onProfile }) {
   const [dashboard, setDashboard] = useState({
     summary: { vendors: 0, ordersToday: 0, sales: 0 },
     vendors: [],
@@ -18,7 +18,9 @@ export function AdminDashboard({ user, onLogout }) {
     pickupLocation: "",
   });
   const [vendorError, setVendorError] = useState("");
+  const [vendorMessage, setVendorMessage] = useState("");
   const [savingVendor, setSavingVendor] = useState(false);
+  const [deletingVendorId, setDeletingVendorId] = useState(null);
 
   const loadDashboard = async () => {
     try {
@@ -36,13 +38,35 @@ export function AdminDashboard({ user, onLogout }) {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    if (!vendorMessage) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setVendorMessage("");
+    }, 3500);
+
+    return () => window.clearTimeout(timer);
+  }, [vendorMessage]);
+
+  useEffect(() => {
+    if (!vendorError) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setVendorError("");
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [vendorError]);
+
   const updateVendorForm = (field, value) => {
     setVendorForm((current) => ({ ...current, [field]: value }));
     setVendorError("");
+    setVendorMessage("");
   };
 
   const handleCreateVendor = async () => {
     setVendorError("");
+    setVendorMessage("");
     setSavingVendor(true);
 
     try {
@@ -60,11 +84,35 @@ export function AdminDashboard({ user, onLogout }) {
         pickupLocation: "",
       });
       setShowVendorForm(false);
+      setVendorMessage("Vendor account created.");
       await loadDashboard();
     } catch (error) {
       setVendorError(error.message || "Failed to create vendor.");
     } finally {
       setSavingVendor(false);
+    }
+  };
+
+  const handleDeleteVendor = async (vendor) => {
+    const confirmed = window.confirm(`Delete ${vendor.name}'s vendor account?`);
+
+    if (!confirmed) return;
+
+    setVendorError("");
+    setVendorMessage("");
+    setDeletingVendorId(vendor.id);
+
+    try {
+      const data = await fetchJson(`/api/users/vendors/${vendor.id}`, {
+        method: "DELETE",
+      });
+
+      setVendorMessage(data?.message || "Vendor deleted successfully.");
+      await loadDashboard();
+    } catch (error) {
+      setVendorError(error.message || "Failed to delete vendor.");
+    } finally {
+      setDeletingVendorId(null);
     }
   };
 
@@ -76,14 +124,24 @@ export function AdminDashboard({ user, onLogout }) {
             <p className="text-xs sm:text-sm text-gray-400">Admin Dashboard</p>
             <h1 className="text-gray-900">Welcome, {user?.name || "Admin"}</h1>
           </div>
-          <button
-            onClick={onLogout}
-            type="button"
-            className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5 text-gray-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onProfile}
+              type="button"
+              className="w-10 h-10 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center transition-colors"
+              title="Profile"
+            >
+              <UserRound className="w-5 h-5 text-[#f97316]" />
+            </button>
+            <button
+              onClick={onLogout}
+              type="button"
+              className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -158,6 +216,7 @@ export function AdminDashboard({ user, onLogout }) {
                   onClick={() => {
                     setShowVendorForm(false);
                     setVendorError("");
+                    setVendorMessage("");
                   }}
                   className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -174,19 +233,41 @@ export function AdminDashboard({ user, onLogout }) {
               </div>
             </div>
           )}
+          {!showVendorForm && vendorError && (
+            <p className="mx-4 sm:mx-5 mt-4 text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {vendorError}
+            </p>
+          )}
+          {vendorMessage && (
+            <p className="mx-4 sm:mx-5 mt-4 text-xs sm:text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+              {vendorMessage}
+            </p>
+          )}
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading vendors..." />}
+            {!loading && dashboard.vendors.length === 0 && <EmptyRow text="No active vendors." />}
             {!loading && dashboard.vendors.map((vendor) => (
               <div key={vendor.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{vendor.name}</p>
                   <p className="text-xs sm:text-sm text-gray-400 truncate">{vendor.email} - {vendor.stall}</p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  vendor.status === "active" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"
-                }`}>
-                  {vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1)}
-                </span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    vendor.status === "active" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"
+                  }`}>
+                    {vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteVendor(vendor)}
+                    disabled={deletingVendorId === vendor.id}
+                    className="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center disabled:opacity-60 disabled:hover:bg-red-50 transition-colors"
+                    title="Delete vendor"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

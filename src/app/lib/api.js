@@ -6,6 +6,10 @@ export const saveAuthSession = ({ user, token }) => {
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
 };
 
+export const updateStoredUser = (user) => {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+};
+
 export const clearAuthSession = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);

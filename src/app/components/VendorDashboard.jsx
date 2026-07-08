@@ -98,6 +98,39 @@ export function VendorDashboard({ user, onLogout }) {
         </div>
 
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
+            <h2 className="text-gray-900">Incoming Orders</h2>
+            <p className="text-xs sm:text-sm text-gray-400">Vendor changes order status from pending to ready.</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {loading && <EmptyRow text="Loading orders..." />}
+            {!loading && dashboard.orders.map((order) => {
+              const action = nextOrderAction(order);
+
+              return (
+                <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[90px_1fr_80px_110px_100px] gap-2 sm:items-center text-sm">
+                  <span className="text-gray-900">{order.id}</span>
+                  <span className="text-gray-500">{order.items}</span>
+                  <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
+                  <span className="text-gray-500">{order.status.replace("_", " ")}</span>
+                  {action ? (
+                    <button
+                      type="button"
+                      onClick={() => updateOrderStatus(order, action.status)}
+                      className="rounded-lg bg-[#f97316] px-3 py-2 text-xs text-white hover:bg-orange-600 transition-colors"
+                    >
+                      {action.label}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-300">Done</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-gray-900">My Menu</h2>
@@ -130,39 +163,6 @@ export function VendorDashboard({ user, onLogout }) {
                 </button>
               </div>
             ))}
-          </div>
-        </section>
-
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
-            <h2 className="text-gray-900">Incoming Orders</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Vendor changes order status from pending to ready.</p>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {loading && <EmptyRow text="Loading orders..." />}
-            {!loading && dashboard.orders.map((order) => {
-              const action = nextOrderAction(order);
-
-              return (
-                <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[90px_1fr_80px_110px_100px] gap-2 sm:items-center text-sm">
-                  <span className="text-gray-900">{order.id}</span>
-                  <span className="text-gray-500">{order.items}</span>
-                  <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
-                  <span className="text-gray-500">{order.status.replace("_", " ")}</span>
-                  {action ? (
-                    <button
-                      type="button"
-                      onClick={() => updateOrderStatus(order, action.status)}
-                      className="rounded-lg bg-[#f97316] px-3 py-2 text-xs text-white hover:bg-orange-600 transition-colors"
-                    >
-                      {action.label}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-gray-300">Done</span>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </section>
       </div>

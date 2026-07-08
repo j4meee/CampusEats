@@ -7,6 +7,8 @@ import { OrderStatusScreen } from "./components/OrderStatusScreen";
 import { PickupConfirmationScreen } from "./components/PickupConfirmationScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { VendorDashboard } from "./components/VendorDashboard";
+import { ProfileScreen } from "./components/ProfileScreen";
+import { StudentActivityScreen } from "./components/StudentActivityScreen";
 import { clearAuthSession, getStoredUser } from "./lib/api";
 
 const STEP_LABELS = {
@@ -42,6 +44,13 @@ export default function App() {
     setCurrentUser(null);
     clearAuthSession();
     setScreen("login");
+  };
+
+  const returnToMenuAfterPickup = () => {
+    setCart([]);
+    setSpecialRequest("");
+    setCurrentOrder(null);
+    setScreen("menu");
   };
 
   const handleLogin = (user) => {
@@ -80,7 +89,7 @@ export default function App() {
     setScreen("pickup");
   };
 
-  const showStudentProgress = !["login", "pickup", "admin", "vendor"].includes(screen);
+  const showStudentProgress = !["login", "pickup", "admin", "vendor", "profile", "activity"].includes(screen);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -120,7 +129,11 @@ export default function App() {
             <LoginScreen onLogin={handleLogin} />
           )}
           {screen === "admin" && (
-            <AdminDashboard user={currentUser} onLogout={handleLogout} />
+            <AdminDashboard
+              user={currentUser}
+              onLogout={handleLogout}
+              onProfile={() => setScreen("profile")}
+            />
           )}
           {screen === "vendor" && (
             <VendorDashboard user={currentUser} onLogout={handleLogout} />
@@ -131,7 +144,31 @@ export default function App() {
               onUpdateCart={setCart}
               onCheckout={() => setScreen("review")}
               onLogout={handleLogout}
+              onProfile={() => setScreen("profile")}
+              onActivity={() => setScreen("activity")}
             />
+          )}
+          {screen === "profile" && (
+            <ProfileScreen
+              user={currentUser}
+              onBack={() => {
+                if (currentUser?.role === "admin") {
+                  setScreen("admin");
+                  return;
+                }
+
+                if (currentUser?.role === "vendor") {
+                  setScreen("vendor");
+                  return;
+                }
+
+                setScreen("menu");
+              }}
+              onUserUpdate={setCurrentUser}
+            />
+          )}
+          {screen === "activity" && (
+            <StudentActivityScreen onBack={() => setScreen("menu")} />
           )}
           {screen === "review" && (
             <OrderReviewScreen
@@ -161,7 +198,7 @@ export default function App() {
             />
           )}
           {screen === "pickup" && (
-            <PickupConfirmationScreen order={currentOrder} onDone={resetAll} />
+            <PickupConfirmationScreen order={currentOrder} onDone={returnToMenuAfterPickup} />
           )}
         </div>
       </div>
