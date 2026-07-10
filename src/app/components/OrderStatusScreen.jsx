@@ -23,7 +23,7 @@ const statusText = {
   cancelled: "Order rejected",
 };
 
-export function OrderStatusScreen({ order, onPickup }) {
+export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
   const [currentOrder, setCurrentOrder] = useState(order);
   const [pickupError, setPickupError] = useState("");
 
@@ -201,6 +201,19 @@ export function OrderStatusScreen({ order, onPickup }) {
               className="w-full bg-green-500 hover:bg-green-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base transition-colors"
             >
               I'm at the counter - Confirm Pickup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isCancelled && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 sm:px-6 pb-6 sm:pb-8 pt-3 bg-white border-t border-gray-100 shadow-lg">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={onBackToMenu}
+              className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base transition-colors"
+            >
+              Back to Menu
             </button>
           </div>
         </div>

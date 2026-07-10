@@ -53,6 +53,13 @@ export default function App() {
     setScreen("menu");
   };
 
+  const returnToMenuAfterRejection = () => {
+    setCart([]);
+    setSpecialRequest("");
+    setCurrentOrder(null);
+    setScreen("menu");
+  };
+
   const handleLogin = (user) => {
     setCurrentUser(user);
 
@@ -195,6 +202,7 @@ export default function App() {
             <OrderStatusScreen
               order={currentOrder}
               onPickup={handlePickupConfirmed}
+              onBackToMenu={returnToMenuAfterRejection}
             />
           )}
           {screen === "pickup" && (
