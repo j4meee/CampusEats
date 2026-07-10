@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock, LogOut, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Clock, LogOut, XCircle, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
@@ -7,7 +7,7 @@ const DASHBOARD_REFRESH_MS = 5000;
 
 export function VendorDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState({
-    summary: { pendingOrders: 0, readyOrders: 0, menuItems: 0 },
+    summary: { pendingOrders: 0, readyOrders: 0, menuItems: 0, weeklyMenuItems: 0 },
     menu: [],
     orders: [],
   });
@@ -72,11 +72,12 @@ export function VendorDashboard({ user, onLogout }) {
   };
 
   const nextOrderAction = (order) => {
-    if (order.status === "pending") return { label: "Start", status: "preparing" };
     if (order.status === "preparing") return { label: "Ready", status: "ready" };
     if (order.status === "ready") return { label: "Picked Up", status: "picked_up" };
     return null;
   };
+
+  const weeklyMenuItems = dashboard.menu.filter((item) => item.isAvailable);
 
   return (
     <div className="min-h-screen bg-[#fafaf8]">
@@ -102,13 +103,35 @@ export function VendorDashboard({ user, onLogout }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <SummaryTile icon={Clock} label="Pending Orders" value={String(dashboard.summary.pendingOrders)} />
           <SummaryTile icon={CheckCircle2} label="Ready Orders" value={String(dashboard.summary.readyOrders)} />
-          <SummaryTile icon={UtensilsCrossed} label="Menu Items" value={String(dashboard.summary.menuItems)} />
+          <SummaryTile icon={UtensilsCrossed} label="Weekly Items" value={String(dashboard.summary.weeklyMenuItems || 0)} />
         </div>
 
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
+            <h2 className="text-gray-900">Current Weekly Menu</h2>
+            <p className="text-xs sm:text-sm text-gray-400">Items currently visible to students for this vendor.</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {loading && <EmptyRow text="Loading weekly menu..." />}
+            {!loading && weeklyMenuItems.length === 0 && <EmptyRow text="No weekly menu items selected yet." />}
+            {!loading && weeklyMenuItems.map((item) => (
+              <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <p className="text-gray-900 truncate">{item.name}</p>
+                  <p className="text-xs sm:text-sm text-gray-400 truncate">
+                    {item.category || "Menu item"} - {item.stockQuantity} left
+                  </p>
+                </div>
+                <span className="shrink-0 text-[#f97316]">${item.price.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Incoming Orders</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Vendor changes order status from pending to ready.</p>
+            <p className="text-xs sm:text-sm text-gray-400">Accept orders you can prepare in time, or reject during rush hours.</p>
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading orders..." />}
@@ -116,12 +139,31 @@ export function VendorDashboard({ user, onLogout }) {
               const action = nextOrderAction(order);
 
               return (
-                <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[90px_1fr_80px_110px_100px] gap-2 sm:items-center text-sm">
+                <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-[90px_1fr_80px_110px_minmax(120px,auto)] gap-2 sm:items-center text-sm">
                   <span className="text-gray-900">{order.id}</span>
                   <span className="text-gray-500">{order.items}</span>
                   <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
                   <span className="text-gray-500">{order.status.replace("_", " ")}</span>
-                  {action ? (
+                  {order.status === "pending" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateOrderStatus(order, "preparing")}
+                        className="rounded-lg bg-green-500 px-3 py-2 text-xs text-white hover:bg-green-600 transition-colors flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateOrderStatus(order, "cancelled")}
+                        className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1.5"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Reject
+                      </button>
+                    </div>
+                  ) : action ? (
                     <button
                       type="button"
                       onClick={() => updateOrderStatus(order, action.status)}
@@ -129,6 +171,8 @@ export function VendorDashboard({ user, onLogout }) {
                     >
                       {action.label}
                     </button>
+                  ) : order.status === "cancelled" ? (
+                    <span className="text-xs text-red-500">Rejected</span>
                   ) : (
                     <span className="text-xs text-gray-300">Done</span>
                   )}

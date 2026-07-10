@@ -156,6 +156,15 @@ export const createOrder = async (req, res) => {
       };
     });
 
+    const outOfStockItem = orderLines.find((line) => line.quantity > line.menuItem.stockQuantity);
+
+    if (outOfStockItem) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `${outOfStockItem.menuItem.name} only has ${outOfStockItem.menuItem.stockQuantity} left`,
+      });
+    }
+
     const subtotal = orderLines.reduce((sum, item) => sum + item.lineTotal, 0);
     const maxPrepTime = Math.max(...orderLines.map((item) => item.menuItem.prepTimeMinutes));
     const estimatedReadyAt = new Date(Date.now() + maxPrepTime * 60 * 1000);
@@ -194,6 +203,15 @@ export const createOrder = async (req, res) => {
         paidAt: new Date(),
       },
       { transaction },
+    );
+
+    await Promise.all(
+      orderLines.map((line) =>
+        line.menuItem.decrement("stockQuantity", {
+          by: line.quantity,
+          transaction,
+        }),
+      ),
     );
 
     await transaction.commit();
@@ -261,8 +279,19 @@ export const getStudentNotifications = async (req, res) => {
         base.push({
           id: `${order.id}-preparing`,
           type: "preparing",
-          title: "Food preparation update",
-          message: `${vendor} is preparing order ${order.orderNumber}.`,
+          title: "Order accepted",
+          message: `${vendor} accepted order ${order.orderNumber} and is preparing it.`,
+          createdAt: order.updatedAt,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      if (order.status === "cancelled") {
+        base.push({
+          id: `${order.id}-cancelled`,
+          type: "cancelled",
+          title: "Order rejected",
+          message: `${vendor} cannot prepare order ${order.orderNumber} in time. Please choose another item or vendor.`,
           createdAt: order.updatedAt,
           orderNumber: order.orderNumber,
         });
@@ -337,10 +366,44 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(403).json({ message: "Vendors cannot set that status" });
     }
 
+    if (status === "cancelled" && order.status !== "pending") {
+      return res.status(400).json({ message: "Only pending orders can be rejected" });
+    }
+
+    if (status === "preparing" && order.status !== "pending") {
+      return res.status(400).json({ message: "Only pending orders can be accepted" });
+    }
+
+    if (status === "ready" && order.status !== "preparing") {
+      return res.status(400).json({ message: "Only accepted orders can be marked ready" });
+    }
+
+    if (status === "picked_up" && order.status !== "ready") {
+      return res.status(400).json({ message: "Only ready orders can be marked picked up" });
+    }
+
     await order.update({
       status,
       pickedUpAt: status === "picked_up" ? new Date() : order.pickedUpAt,
     });
+
+    if (status === "cancelled") {
+      const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+
+      await Promise.all(
+        orderItems.map((item) =>
+          MenuItem.increment("stockQuantity", {
+            by: item.quantity,
+            where: { id: item.menuItemId },
+          }),
+        ),
+      );
+
+      await Payment.update(
+        { status: "refunded" },
+        { where: { orderId: order.id } },
+      );
+    }
 
     const updatedOrder = await findOrderById(order.id);
     res.status(200).json({ order: formatOrder(updatedOrder) });

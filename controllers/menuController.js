@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { Category, MenuItem, Vendor } from "../model/index.js";
 
 const MAX_WEEKLY_MENU_ITEMS = 10;
@@ -8,6 +9,7 @@ const formatManagedMenuItem = (item) => ({
   name: item.name,
   category: item.category?.name,
   price: Number(item.price),
+  stockQuantity: item.stockQuantity,
   prepTimeMinutes: item.prepTimeMinutes,
   tag: item.tag,
   emoji: item.imageLabel,
@@ -22,7 +24,10 @@ export const getMenu = async (_req, res) => {
     const [categories, items] = await Promise.all([
       Category.findAll({ order: [["name", "ASC"]] }),
       MenuItem.findAll({
-        where: { isAvailable: true },
+        where: {
+          isAvailable: true,
+          stockQuantity: { [Op.gt]: 0 },
+        },
         include: [
           { model: Category, as: "category", attributes: ["id", "name"] },
           { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
@@ -39,6 +44,7 @@ export const getMenu = async (_req, res) => {
         name: item.name,
         category: item.category?.name,
         price: Number(item.price),
+        stockQuantity: item.stockQuantity,
         time: `${item.prepTimeMinutes} min`,
         prepTimeMinutes: item.prepTimeMinutes,
         tag: item.tag,

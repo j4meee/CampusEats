@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChefHat, Bell, MapPin } from "lucide-react";
+import { CheckCircle2, ChefHat, Bell, MapPin, XCircle } from "lucide-react";
 import { fetchJson } from "../lib/api";
 
 const steps = [
@@ -20,7 +20,7 @@ const statusText = {
   preparing: "Preparing your order",
   ready: "Your order is ready!",
   picked_up: "Order picked up",
-  cancelled: "Order cancelled",
+  cancelled: "Order rejected",
 };
 
 export function OrderStatusScreen({ order, onPickup }) {
@@ -56,6 +56,7 @@ export function OrderStatusScreen({ order, onPickup }) {
 
   const currentStep = statusStep[currentOrder.status] || 1;
   const isReady = currentOrder.status === "ready";
+  const isCancelled = currentOrder.status === "cancelled";
   const pickupLocation = currentOrder.pickupLocation || currentOrder.vendor?.pickupLocation || "Pickup counter";
   const estimatedTime = currentOrder.estimatedReadyAt
     ? new Date(currentOrder.estimatedReadyAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -81,18 +82,24 @@ export function OrderStatusScreen({ order, onPickup }) {
   return (
     <div className="flex flex-col min-h-screen bg-[#fafaf8]">
       <div className={`px-4 sm:px-6 pt-8 sm:pt-12 pb-6 sm:pb-8 text-center transition-all duration-500 ${
-        isReady ? "bg-green-500" : "bg-[#f97316]"
+        isCancelled ? "bg-red-500" : isReady ? "bg-green-500" : "bg-[#f97316]"
       }`}>
         <div className="max-w-4xl mx-auto">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            {isReady
+            {isCancelled
+              ? <XCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              : isReady
               ? <Bell className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
               : <ChefHat className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             }
           </div>
           <h2 className="text-white">{statusText[currentOrder.status] || "Order in progress"}</h2>
           <p className="text-white/80 text-sm sm:text-base mt-1">
-            {isReady ? `Please pick up at ${pickupLocation}` : `Estimated ready at ${estimatedTime}`}
+            {isCancelled
+              ? "The vendor cannot prepare this order in time."
+              : isReady
+                ? `Please pick up at ${pickupLocation}`
+                : `Estimated ready at ${estimatedTime}`}
           </p>
           <div className="mt-3 sm:mt-4 inline-block bg-white/20 rounded-xl px-4 sm:px-5 py-1.5 sm:py-2">
             <p className="text-white text-sm sm:text-base">
@@ -114,11 +121,13 @@ export function OrderStatusScreen({ order, onPickup }) {
                 <div key={step.id} className="flex gap-3 sm:gap-4">
                   <div className="flex flex-col items-center">
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 transition-colors duration-500 ${
+                      isCancelled && step.id === 1 ? "bg-red-100" :
                       done ? "bg-green-100" :
                       active ? (isReady && step.id === 3 ? "bg-green-100" : "bg-orange-100") :
                       "bg-gray-100"
                     }`}>
                       <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                        isCancelled && step.id === 1 ? "text-red-500" :
                         done ? "text-green-500" :
                         active ? (isReady && step.id === 3 ? "text-green-500" : "text-[#f97316]") :
                         "text-gray-300"
@@ -156,14 +165,25 @@ export function OrderStatusScreen({ order, onPickup }) {
             </div>
           </div>
 
-          <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-start gap-2.5 sm:gap-3">
-            <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#f97316] mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm sm:text-base text-gray-800">Pickup Location</p>
-              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">{pickupLocation}</p>
-              <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Show your order number at pickup.</p>
+          {isCancelled ? (
+            <div className="bg-red-50 border border-red-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-start gap-2.5 sm:gap-3">
+              <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm sm:text-base text-gray-800">Order Rejected</p>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Your payment has been marked as refunded.</p>
+                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Please choose another item or vendor.</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-start gap-2.5 sm:gap-3">
+              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#f97316] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm sm:text-base text-gray-800">Pickup Location</p>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">{pickupLocation}</p>
+                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Show your order number at pickup.</p>
+              </div>
+            </div>
+          )}
 
           {pickupError && (
             <div className="bg-red-50 border border-red-100 rounded-2xl px-4 sm:px-5 py-3 text-sm sm:text-base text-red-600">

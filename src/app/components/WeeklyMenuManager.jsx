@@ -138,6 +138,11 @@ export function WeeklyMenuManager({ title = "Weekly Menu", subtitle = "Choose up
                   <p className="text-xs sm:text-sm text-gray-400 truncate">
                     ${item.price.toFixed(2)} - {item.category || "Menu"} - {item.vendor || "Vendor"}
                   </p>
+                  {Number.isInteger(item.stockQuantity) && (
+                    <p className={`text-xs ${item.stockQuantity <= 3 ? "text-red-400" : "text-gray-400"}`}>
+                      {item.stockQuantity} left
+                    </p>
+                  )}
                 </div>
               </div>
               <span className={`shrink-0 rounded-lg px-3 py-2 text-xs sm:text-sm flex items-center gap-2 ${

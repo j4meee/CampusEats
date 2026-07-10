@@ -37,6 +37,15 @@ const MenuItem = sequelize.define(
       defaultValue: 5,
       field: "prep_time_minutes",
     },
+    stockQuantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 20,
+      field: "stock_quantity",
+      validate: {
+        min: 0,
+      },
+    },
     tag: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -68,6 +77,10 @@ const MenuItem = sequelize.define(
       {
         name: "idx_menu_items_is_available",
         fields: ["is_available"],
+      },
+      {
+        name: "idx_menu_items_stock_quantity",
+        fields: ["stock_quantity"],
       },
       {
         name: "idx_menu_items_vendor_name",

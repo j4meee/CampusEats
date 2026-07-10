@@ -67,6 +67,8 @@ payments       QR/e-wallet payment records
 feedback       post-pickup ratings
 ```
 
+`menu_items.stock_quantity` stores how many portions are available. `order_items.quantity` stores how many portions the student ordered.
+
 Seed accounts:
 
 ```txt

@@ -38,14 +38,28 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
 
   const updateItem = (item, delta) => {
     const existing = cart.find((c) => c.id === item.id);
+    const stockQuantity = item.stockQuantity ?? Number.MAX_SAFE_INTEGER;
     let updated;
     if (!existing) {
-      updated = [...cart, { id: item.id, name: item.name, price: item.price, qty: 1, emoji: item.emoji, vendorId: item.vendorId }];
+      if (stockQuantity <= 0) return;
+
+      updated = [
+        ...cart,
+        {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          qty: 1,
+          emoji: item.emoji,
+          vendorId: item.vendorId,
+          stockQuantity,
+        },
+      ];
     } else {
-      const newQty = existing.qty + delta;
+      const newQty = Math.min(existing.qty + delta, stockQuantity);
       updated = newQty <= 0
         ? cart.filter((c) => c.id !== item.id)
-        : cart.map((c) => c.id === item.id ? { ...c, qty: newQty } : c);
+        : cart.map((c) => c.id === item.id ? { ...c, qty: newQty, stockQuantity } : c);
     }
     onUpdateCart(updated);
   };
@@ -137,6 +151,8 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
         <div className="max-w-4xl mx-auto py-4 sm:py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {filtered.map((item) => {
             const qty = getQty(item.id);
+            const stockQuantity = item.stockQuantity ?? 0;
+            const stockLimitReached = qty >= stockQuantity;
             return (
               <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <button
@@ -169,6 +185,9 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 truncate">{item.vendor || "Campus vendor"}</p>
+                  <p className={`text-xs ${stockQuantity <= 3 ? "text-red-400" : "text-gray-400"}`}>
+                    {stockQuantity} left
+                  </p>
                 </div>
 
                 <button
@@ -200,8 +219,10 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
                     <span className="w-4 sm:w-5 text-center text-sm sm:text-base text-gray-900">{qty}</span>
                     <button
                       onClick={() => updateItem(item, 1)}
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center transition-colors"
+                      disabled={stockLimitReached}
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:hover:bg-[#f97316]"
                       type="button"
+                      title={stockLimitReached ? "No more stock available" : "Add one more"}
                     >
                       <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     </button>
@@ -262,6 +283,9 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
 }
 
 function FoodDetailModal({ item, qty, onClose, onUpdate }) {
+  const stockQuantity = item.stockQuantity ?? 0;
+  const stockLimitReached = qty >= stockQuantity;
+
   return (
     <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center px-4 py-4">
       <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-xl">
@@ -289,6 +313,7 @@ function FoodDetailModal({ item, qty, onClose, onUpdate }) {
           <div className="grid grid-cols-2 gap-3">
             <DetailTile label="Price" value={`$${item.price.toFixed(2)}`} />
             <DetailTile label="Ready In" value={item.time} />
+            <DetailTile label="Stock" value={`${stockQuantity} left`} />
             <DetailTile label="Pickup" value={item.pickupLocation || "Pickup counter"} wide />
           </div>
 
@@ -298,7 +323,8 @@ function FoodDetailModal({ item, qty, onClose, onUpdate }) {
               <button
                 type="button"
                 onClick={() => onUpdate(1)}
-                className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2 text-sm flex items-center gap-2 transition-colors"
+                disabled={stockQuantity <= 0}
+                className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2 text-sm flex items-center gap-2 transition-colors disabled:opacity-40 disabled:hover:bg-[#f97316]"
               >
                 <Plus className="w-4 h-4" />
                 Add to Cart
@@ -316,7 +342,8 @@ function FoodDetailModal({ item, qty, onClose, onUpdate }) {
                 <button
                   type="button"
                   onClick={() => onUpdate(1)}
-                  className="w-9 h-9 rounded-full bg-[#f97316] hover:bg-orange-600 flex items-center justify-center transition-colors"
+                  disabled={stockLimitReached}
+                  className="w-9 h-9 rounded-full bg-[#f97316] hover:bg-orange-600 flex items-center justify-center transition-colors disabled:opacity-40 disabled:hover:bg-[#f97316]"
                 >
                   <Plus className="w-4 h-4 text-white" />
                 </button>

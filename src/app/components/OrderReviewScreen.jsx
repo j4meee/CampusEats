@@ -7,7 +7,8 @@ export function OrderReviewScreen({ cart, onUpdateCart, onBack, onPay }) {
 
   const updateQty = (id, delta) => {
     const item = cart.find((c) => c.id === id);
-    const newQty = item.qty + delta;
+    const stockQuantity = item.stockQuantity ?? Number.MAX_SAFE_INTEGER;
+    const newQty = Math.min(item.qty + delta, stockQuantity);
     if (newQty <= 0) {
       onUpdateCart(cart.filter((c) => c.id !== id));
     } else {
@@ -67,6 +68,9 @@ export function OrderReviewScreen({ cart, onUpdateCart, onBack, onPay }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
                   <p className="text-xs sm:text-sm text-[#f97316]">${(item.price * item.qty).toFixed(2)}</p>
+                  {Number.isInteger(item.stockQuantity) && (
+                    <p className="text-xs text-gray-400">{item.stockQuantity} left</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -81,7 +85,8 @@ export function OrderReviewScreen({ cart, onUpdateCart, onBack, onPay }) {
                   <span className="w-5 text-center text-sm sm:text-base text-gray-900">{item.qty}</span>
                   <button
                     onClick={() => updateQty(item.id, 1)}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center transition-colors"
+                    disabled={Number.isInteger(item.stockQuantity) && item.qty >= item.stockQuantity}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f97316] hover:bg-orange-600 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:hover:bg-[#f97316]"
                   >
                     <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   </button>
