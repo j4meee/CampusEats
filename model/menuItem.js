@@ -56,6 +56,24 @@ const MenuItem = sequelize.define(
   {
     tableName: "menu_items",
     timestamps: true,
+    indexes: [
+      {
+        name: "idx_menu_items_vendor_id",
+        fields: ["vendor_id"],
+      },
+      {
+        name: "idx_menu_items_category_id",
+        fields: ["category_id"],
+      },
+      {
+        name: "idx_menu_items_is_available",
+        fields: ["is_available"],
+      },
+      {
+        name: "idx_menu_items_vendor_name",
+        fields: ["vendor_id", "name"],
+      },
+    ],
   },
 );
 

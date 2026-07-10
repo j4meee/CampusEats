@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import { getRolePrivileges, hasPrivilege } from "../config/accessControl.js";
 import { User } from "../model/index.js";
 
 dotenv.config();
@@ -24,11 +25,20 @@ export const requireAuth = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid or inactive account" });
     }
 
+    req.userPrivileges = getRolePrivileges(user.role);
     req.user = user;
     next();
   } catch {
     res.status(401).json({ message: "Invalid or expired token" });
   }
+};
+
+export const requirePrivilege = (...privileges) => (req, res, next) => {
+  if (!req.user || privileges.some((privilege) => !hasPrivilege(req.user.role, privilege))) {
+    return res.status(403).json({ message: "You do not have permission to access this resource" });
+  }
+
+  next();
 };
 
 export const requireRole = (...roles) => (req, res, next) => {

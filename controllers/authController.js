@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import { getRolePrivileges } from "../config/accessControl.js";
 import { User, Vendor } from "../model/index.js";
 
 dotenv.config();
@@ -9,7 +10,10 @@ const jwtSecret = process.env.JWT_SECRET || "campus-eats-dev-secret-change-me";
 
 const publicUser = (user) => {
   const { password: _password, ...safeUser } = user.toJSON();
-  return safeUser;
+  return {
+    ...safeUser,
+    privileges: getRolePrivileges(safeUser.role),
+  };
 };
 
 const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);

@@ -8,7 +8,7 @@ import {
 } from "../model/index.js";
 
 const categories = ["Mains", "Snacks", "Drinks", "Desserts"];
-const demoMenuItems = [
+const menuItems = [
   {
     category: "Mains",
     name: "Chicken Rice Bowl",
@@ -232,7 +232,7 @@ const seed = async () => {
   const seededCategories = await Category.findAll();
   const categoryByName = new Map(seededCategories.map((category) => [category.name, category]));
 
-  const [demoVendorUser] = await User.findOrCreate({
+  const [seedVendorUser] = await User.findOrCreate({
     where: { email: "vendor@campuseats.test" },
     defaults: {
       name: "Counter B Vendor",
@@ -243,16 +243,16 @@ const seed = async () => {
     },
   });
 
-  await demoVendorUser.update({
+  await seedVendorUser.update({
     name: "Counter B Vendor",
     role: "vendor",
     status: "active",
   });
 
-  const [demoVendor] = await Vendor.findOrCreate({
-    where: { userId: demoVendorUser.id },
+  const [seedVendor] = await Vendor.findOrCreate({
+    where: { userId: seedVendorUser.id },
     defaults: {
-      userId: demoVendorUser.id,
+      userId: seedVendorUser.id,
       name: "Counter B Vendor",
       stallName: "Counter B",
       pickupLocation: "Block A Canteen - Counter B",
@@ -260,14 +260,14 @@ const seed = async () => {
     },
   });
 
-  await demoVendor.update({
+  await seedVendor.update({
     name: "Counter B Vendor",
     stallName: "Counter B",
     pickupLocation: "Block A Canteen - Counter B",
     status: "active",
   });
 
-  for (const [index, item] of demoMenuItems.entries()) {
+  for (const [index, item] of menuItems.entries()) {
     const category = categoryByName.get(item.category);
     const isAvailable = index < 10;
 
@@ -277,11 +277,11 @@ const seed = async () => {
 
     const [menuItem] = await MenuItem.findOrCreate({
       where: {
-        vendorId: demoVendor.id,
+        vendorId: seedVendor.id,
         name: item.name,
       },
       defaults: {
-        vendorId: demoVendor.id,
+        vendorId: seedVendor.id,
         categoryId: category.id,
         name: item.name,
         description: item.description,
@@ -306,7 +306,7 @@ const seed = async () => {
 
   console.log("Database seeded successfully.");
   console.log(`Admin account ready: ${admin.email}`);
-  console.log(`Menu items ready: ${demoMenuItems.length}`);
+  console.log(`Menu items ready: ${menuItems.length}`);
 };
 
 seed()

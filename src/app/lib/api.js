@@ -16,9 +16,13 @@ export const clearAuthSession = () => {
 };
 
 export const getStoredUser = () => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
   const storedUser = localStorage.getItem(AUTH_USER_KEY);
 
-  if (!storedUser) return null;
+  if (!token || !storedUser) {
+    clearAuthSession();
+    return null;
+  }
 
   try {
     return JSON.parse(storedUser);
@@ -50,6 +54,10 @@ export const fetchJson = async (url, options) => {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession();
+    }
+
     const message = data?.error
       ? `${data.message}: ${data.error}`
       : data?.message || text || `Request failed with status ${response.status}`;

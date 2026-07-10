@@ -168,6 +168,7 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
                       <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {item.time}
                     </span>
                   </div>
+                  <p className="text-xs text-gray-400 truncate">{item.vendor || "Campus vendor"}</p>
                 </div>
 
                 <button

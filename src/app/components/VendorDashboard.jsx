@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Clock, LogOut, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
+
+const DASHBOARD_REFRESH_MS = 5000;
 
 export function VendorDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState({
@@ -10,22 +12,36 @@ export function VendorDashboard({ user, onLogout }) {
     orders: [],
   });
   const [loading, setLoading] = useState(true);
+  const refreshInFlight = useRef(false);
+
+  const loadDashboard = useCallback(async ({ showLoading = false } = {}) => {
+    if (!user?.id || refreshInFlight.current) return;
+
+    refreshInFlight.current = true;
+    if (showLoading) setLoading(true);
+
+    try {
+      const data = await fetchJson(`/api/dashboard/vendor/${user.id}`);
+
+      setDashboard(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      refreshInFlight.current = false;
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const data = await fetchJson(`/api/dashboard/vendor/${user.id}`);
+    if (!user?.id) return undefined;
 
-        setDashboard(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadDashboard({ showLoading: true });
+    const refreshTimer = window.setInterval(() => {
+      loadDashboard();
+    }, DASHBOARD_REFRESH_MS);
 
-    if (user?.id) loadDashboard();
-  }, [user?.id]);
+    return () => window.clearInterval(refreshTimer);
+  }, [loadDashboard, user?.id]);
 
   const updateOrderStatus = async (order, status) => {
     try {

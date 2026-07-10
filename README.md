@@ -48,7 +48,7 @@ The backend uses MySQL through Sequelize. Create a local database that matches y
 CREATE DATABASE campuseats_db;
 ```
 
-Then create/update the tables and insert demo data:
+Then create/update the tables and insert seed data:
 
 ```bash
 npm run db:seed
@@ -67,10 +67,27 @@ payments       QR/e-wallet payment records
 feedback       post-pickup ratings
 ```
 
-Demo accounts:
+Seed accounts:
 
 ```txt
 Student: student@campuseats.test / student123
 Admin:   admin@campuseats.test / admin123
 Vendor:  vendor@campuseats.test / vendor123
+```
+
+## User Access Control
+
+CampusEats uses role-based access control with privileges:
+
+```txt
+student  can view menu, place orders, and view their own order/payment history
+vendor   can manage their menu, manage vendor orders, and view the vendor dashboard
+admin    has all privileges, including user/access-control management
+```
+
+The role and privilege matrix is defined in `config/accessControl.js`.
+Admins can view it through:
+
+```txt
+GET /api/users/access-control
 ```
