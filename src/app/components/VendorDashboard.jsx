@@ -8,14 +8,15 @@ const DASHBOARD_REFRESH_MS = 5000;
 export function VendorDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState({
     summary: { pendingOrders: 0, readyOrders: 0, menuItems: 0, weeklyMenuItems: 0 },
+    staffType: user?.vendorStaffType || "cashier",
     menu: [],
     orders: [],
   });
   const [loading, setLoading] = useState(true);
   const refreshInFlight = useRef(false);
 
-  const loadDashboard = useCallback(async ({ showLoading = false } = {}) => {
-    if (!user?.id || refreshInFlight.current) return;
+  const loadDashboard = useCallback(async ({ showLoading = false, force = false } = {}) => {
+    if (!user?.id || (!force && refreshInFlight.current)) return;
 
     refreshInFlight.current = true;
     if (showLoading) setLoading(true);
@@ -44,11 +45,20 @@ export function VendorDashboard({ user, onLogout }) {
   }, [loadDashboard, user?.id]);
 
   const updateOrderStatus = async (order, status) => {
+    const body = { status };
+
+    if (status === "cancelled") {
+      const reason = window.prompt("Why are you rejecting this order?", "Too busy to prepare in time");
+
+      if (!reason?.trim()) return;
+      body.reason = reason.trim();
+    }
+
     try {
       const data = await fetchJson(`/api/orders/${order.dbId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
 
       setDashboard((current) => ({
@@ -72,12 +82,20 @@ export function VendorDashboard({ user, onLogout }) {
   };
 
   const nextOrderAction = (order) => {
-    if (order.status === "preparing") return { label: "Ready", status: "ready" };
-    if (order.status === "ready") return { label: "Picked Up", status: "picked_up" };
+    if ((dashboard.staffType || user?.vendorStaffType) === "chef" && order.status === "preparing") {
+      return { label: "Ready", status: "ready" };
+    }
+
     return null;
   };
 
   const weeklyMenuItems = dashboard.menu.filter((item) => item.isAvailable);
+  const staffType = dashboard.staffType || user?.vendorStaffType || "cashier";
+  const visibleOrders = dashboard.orders.filter((order) =>
+    staffType === "chef"
+      ? ["preparing", "ready"].includes(order.status)
+      : ["pending", "cancelled"].includes(order.status),
+  );
 
   return (
     <div className="min-h-screen bg-[#fafaf8]">
@@ -86,7 +104,9 @@ export function VendorDashboard({ user, onLogout }) {
           <div>
             <p className="text-orange-100 text-xs sm:text-sm">Vendor Dashboard</p>
             <h1 className="text-white">{user?.name || "Counter B Vendor"}</h1>
-            <p className="text-orange-100 text-sm">Manage menu availability and incoming orders.</p>
+            <p className="text-orange-100 text-sm">
+              {staffType === "chef" ? "Prepare accepted orders and mark them ready." : "Monitor incoming orders and accept or reject them."}
+            </p>
           </div>
           <button
             onClick={onLogout}
@@ -135,7 +155,10 @@ export function VendorDashboard({ user, onLogout }) {
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading orders..." />}
-            {!loading && dashboard.orders.map((order) => {
+            {!loading && visibleOrders.length === 0 && (
+              <EmptyRow text={staffType === "chef" ? "No accepted orders to prepare." : "No pending orders to review."} />
+            )}
+            {!loading && visibleOrders.map((order) => {
               const action = nextOrderAction(order);
 
               return (
@@ -144,7 +167,7 @@ export function VendorDashboard({ user, onLogout }) {
                   <span className="text-gray-500">{order.items}</span>
                   <span className="text-[#f97316]">${order.total.toFixed(2)}</span>
                   <span className="text-gray-500">{order.status.replace("_", " ")}</span>
-                  {order.status === "pending" ? (
+                  {staffType !== "chef" && order.status === "pending" ? (
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -182,10 +205,13 @@ export function VendorDashboard({ user, onLogout }) {
           </div>
         </section>
 
-        <WeeklyMenuManager
-          title="My Weekly Menu"
-          subtitle="Choose up to 10 of your items to show to students this week."
-        />
+        {staffType !== "chef" && (
+          <WeeklyMenuManager
+            title="My Weekly Menu"
+            subtitle="Choose up to 10 of your items to show to students this week."
+            onMenuSaved={() => loadDashboard({ force: true })}
+          />
+        )}
       </div>
     </div>
   );

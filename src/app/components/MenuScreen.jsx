@@ -51,7 +51,7 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
           price: item.price,
           qty: 1,
           emoji: item.emoji,
-          vendorId: item.vendorId,
+          vendorCounterId: item.vendorCounterId,
           stockQuantity,
         },
       ];

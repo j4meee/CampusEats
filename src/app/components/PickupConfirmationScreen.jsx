@@ -5,6 +5,8 @@ export function PickupConfirmationScreen({ order, onDone }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const orders = Array.isArray(order) ? order : order ? [order] : [];
+  const orderNumbers = orders.length > 0 ? orders.map((item) => item.orderNumber).join(", ") : "confirmed";
 
   const handleSubmit = () => {
     setSubmitted(true);
@@ -20,7 +22,7 @@ export function PickupConfirmationScreen({ order, onDone }) {
 
         <h1 className="text-gray-900 mb-1">Enjoy your meal!</h1>
         <p className="text-gray-500 text-sm sm:text-base mb-8 sm:mb-10">
-          Order <span className="text-gray-700">{order?.orderNumber || "confirmed"}</span> has been collected.
+          Order <span className="text-gray-700">{orderNumbers}</span> has been collected.
         </p>
 
         {!submitted ? (

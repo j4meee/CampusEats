@@ -1,5 +1,6 @@
 import sequelize from "../db/database.js";
 import { MenuItem, Order, OrderItem, Payment, User, Vendor } from "../model/index.js";
+import { findVendorForUser } from "./vendorAccess.js";
 
 const formatOrder = (order) => ({
   id: order.id,
@@ -8,13 +9,14 @@ const formatOrder = (order) => ({
   subtotal: Number(order.subtotal),
   total: Number(order.total),
   specialRequest: order.specialRequest,
+  rejectionReason: order.rejectionReason,
   estimatedReadyAt: order.estimatedReadyAt,
   pickedUpAt: order.pickedUpAt,
   pickupLocation: order.vendor?.pickupLocation,
   vendor: order.vendor
     ? {
         id: order.vendor.id,
-        name: order.vendor.name,
+        name: order.vendor.stallName,
         stallName: order.vendor.stallName,
         pickupLocation: order.vendor.pickupLocation,
       }
@@ -49,7 +51,7 @@ const buildOrderNumber = () => {
 const findOrderById = (id) =>
   Order.findByPk(id, {
     include: [
-      { model: Vendor, as: "vendor", attributes: ["id", "name", "stallName", "pickupLocation"] },
+      { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
       { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
       {
         model: OrderItem,
@@ -63,7 +65,7 @@ const findStudentOrders = (studentId) =>
   Order.findAll({
     where: { studentId },
     include: [
-      { model: Vendor, as: "vendor", attributes: ["id", "name", "stallName", "pickupLocation"] },
+      { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
       { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
       {
         model: OrderItem,
@@ -79,8 +81,8 @@ const canAccessOrder = async (user, order) => {
   if (user.role === "student") return order.studentId === user.id;
 
   if (user.role === "vendor") {
-    const vendor = await Vendor.findOne({ where: { userId: user.id } });
-    return vendor?.id === order.vendorId;
+    const vendor = await findVendorForUser(user);
+    return vendor?.id === order.vendorCounterId;
   }
 
   return false;
@@ -135,13 +137,6 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "One or more menu items are no longer available" });
     }
 
-    const vendorIds = new Set(menuItems.map((item) => item.vendorId));
-
-    if (vendorIds.size !== 1) {
-      await transaction.rollback();
-      return res.status(400).json({ message: "Please place separate orders for different vendors" });
-    }
-
     const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
     const orderLines = requestedItems.map((requestedItem) => {
       const menuItem = menuItemById.get(requestedItem.menuItemId);
@@ -165,45 +160,61 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    const subtotal = orderLines.reduce((sum, item) => sum + item.lineTotal, 0);
-    const maxPrepTime = Math.max(...orderLines.map((item) => item.menuItem.prepTimeMinutes));
-    const estimatedReadyAt = new Date(Date.now() + maxPrepTime * 60 * 1000);
+    const orderLinesByCounter = new Map();
 
-    const order = await Order.create(
-      {
-        orderNumber: buildOrderNumber(),
-        studentId: student.id,
-        vendorId: orderLines[0].menuItem.vendorId,
-        status: "pending",
-        specialRequest: specialRequest?.trim() || null,
-        subtotal,
-        total: subtotal,
-        estimatedReadyAt,
-      },
-      { transaction },
-    );
+    for (const line of orderLines) {
+      const vendorCounterId = line.menuItem.vendorCounterId;
+      const currentLines = orderLinesByCounter.get(vendorCounterId) || [];
+      currentLines.push(line);
+      orderLinesByCounter.set(vendorCounterId, currentLines);
+    }
 
-    await OrderItem.bulkCreate(
-      orderLines.map((line) => ({
-        orderId: order.id,
-        menuItemId: line.menuItem.id,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        lineTotal: line.lineTotal,
-      })),
-      { transaction },
-    );
+    const orders = [];
 
-    await Payment.create(
-      {
-        orderId: order.id,
-        method: paymentMethod,
-        status: "paid",
-        amount: subtotal,
-        paidAt: new Date(),
-      },
-      { transaction },
-    );
+    for (const [vendorCounterId, counterLines] of orderLinesByCounter.entries()) {
+      const subtotal = counterLines.reduce((sum, item) => sum + item.lineTotal, 0);
+      const maxPrepTime = Math.max(...counterLines.map((item) => item.menuItem.prepTimeMinutes));
+      const estimatedReadyAt = new Date(Date.now() + maxPrepTime * 60 * 1000);
+
+      const order = await Order.create(
+        {
+          orderNumber: buildOrderNumber(),
+          studentId: student.id,
+          vendorCounterId,
+          status: "pending",
+          specialRequest: specialRequest?.trim() || null,
+          subtotal,
+          total: subtotal,
+          estimatedReadyAt,
+          stockReserved: true,
+        },
+        { transaction },
+      );
+
+      await OrderItem.bulkCreate(
+        counterLines.map((line) => ({
+          orderId: order.id,
+          menuItemId: line.menuItem.id,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          lineTotal: line.lineTotal,
+        })),
+        { transaction },
+      );
+
+      await Payment.create(
+        {
+          orderId: order.id,
+          method: paymentMethod,
+          status: "paid",
+          amount: subtotal,
+          paidAt: new Date(),
+        },
+        { transaction },
+      );
+
+      orders.push(order);
+    }
 
     await Promise.all(
       orderLines.map((line) =>
@@ -216,8 +227,14 @@ export const createOrder = async (req, res) => {
 
     await transaction.commit();
 
-    const savedOrder = await findOrderById(order.id);
-    res.status(201).json({ order: formatOrder(savedOrder) });
+    const savedOrders = await Promise.all(orders.map((order) => findOrderById(order.id)));
+    const formattedOrders = savedOrders.map(formatOrder);
+
+    res.status(201).json({
+      order: formattedOrders[0],
+      orders: formattedOrders,
+      orderCount: formattedOrders.length,
+    });
   } catch (error) {
     if (!transaction.finished) {
       await transaction.rollback();
@@ -287,11 +304,12 @@ export const getStudentNotifications = async (req, res) => {
       }
 
       if (order.status === "cancelled") {
+        const reason = order.rejectionReason ? ` Reason: ${order.rejectionReason}` : "";
         base.push({
           id: `${order.id}-cancelled`,
           type: "cancelled",
           title: "Order rejected",
-          message: `${vendor} cannot prepare order ${order.orderNumber} in time. Please choose another item or vendor.`,
+          message: `${vendor} cannot prepare order ${order.orderNumber} in time.${reason} Please choose another item or vendor.`,
           createdAt: order.updatedAt,
           orderNumber: order.orderNumber,
         });
@@ -342,6 +360,7 @@ export const getOrderById = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const rejectionReason = req.body.reason?.trim() || req.body.rejectionReason?.trim() || null;
     const allowedStatuses = ["pending", "preparing", "ready", "picked_up", "cancelled"];
 
     if (!allowedStatuses.includes(status)) {
@@ -362,8 +381,18 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(403).json({ message: "Students can only confirm pickup" });
     }
 
-    if (req.user.role === "vendor" && !["preparing", "ready", "picked_up", "cancelled"].includes(status)) {
-      return res.status(403).json({ message: "Vendors cannot set that status" });
+    if (req.user.role === "vendor") {
+      if (req.user.vendorStaffType === "chef" && status !== "ready") {
+        return res.status(403).json({ message: "Chef accounts can only mark accepted orders as ready" });
+      }
+
+      if (req.user.vendorStaffType !== "chef" && !["preparing", "cancelled"].includes(status)) {
+        return res.status(403).json({ message: "Cashier accounts can only accept or reject pending orders" });
+      }
+    }
+
+    if (status === "cancelled" && !rejectionReason) {
+      return res.status(400).json({ message: "Rejection reason is required" });
     }
 
     if (status === "cancelled" && order.status !== "pending") {
@@ -382,27 +411,52 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: "Only ready orders can be marked picked up" });
     }
 
-    await order.update({
-      status,
-      pickedUpAt: status === "picked_up" ? new Date() : order.pickedUpAt,
-    });
-
     if (status === "cancelled") {
-      const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+      const transaction = await sequelize.transaction();
 
-      await Promise.all(
-        orderItems.map((item) =>
-          MenuItem.increment("stockQuantity", {
-            by: item.quantity,
-            where: { id: item.menuItemId },
-          }),
-        ),
-      );
+      try {
+        if (order.stockReserved) {
+          const orderItems = await OrderItem.findAll({
+            where: { orderId: order.id },
+            transaction,
+          });
 
-      await Payment.update(
-        { status: "refunded" },
-        { where: { orderId: order.id } },
-      );
+          await Promise.all(
+            orderItems.map((item) =>
+              MenuItem.increment("stockQuantity", {
+                by: item.quantity,
+                where: { id: item.menuItemId },
+                transaction,
+              }),
+            ),
+          );
+        }
+
+        await Promise.all([
+          order.update(
+            {
+              status,
+              stockReserved: false,
+              rejectionReason,
+            },
+            { transaction },
+          ),
+          Payment.update(
+            { status: "refunded" },
+            { where: { orderId: order.id }, transaction },
+          ),
+        ]);
+
+        await transaction.commit();
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    } else {
+      await order.update({
+        status,
+        pickedUpAt: status === "picked_up" ? new Date() : order.pickedUpAt,
+      });
     }
 
     const updatedOrder = await findOrderById(order.id);

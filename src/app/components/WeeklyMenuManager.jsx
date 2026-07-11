@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Save, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 
-export function WeeklyMenuManager({ title = "Weekly Menu", subtitle = "Choose up to 10 items to show to students this week." }) {
+export function WeeklyMenuManager({
+  title = "Weekly Menu",
+  subtitle = "Choose up to 10 items to show to students this week.",
+  onMenuSaved,
+}) {
   const [items, setItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [maxSelected, setMaxSelected] = useState(10);
@@ -75,6 +79,9 @@ export function WeeklyMenuManager({ title = "Weekly Menu", subtitle = "Choose up
 
       setMessage(data.message || "Weekly menu updated.");
       await loadMenu();
+      if (onMenuSaved) {
+        await onMenuSaved();
+      }
     } catch (err) {
       setError(err.message || "Failed to update weekly menu.");
     } finally {

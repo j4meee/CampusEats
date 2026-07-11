@@ -36,6 +36,16 @@ const User = sequelize.define(
       allowNull: false,
       defaultValue: "student",
     },
+    vendorCounterId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "vendor_counter_id",
+    },
+    vendorStaffType: {
+      type: DataTypes.ENUM("cashier", "chef"),
+      allowNull: true,
+      field: "vendor_staff_type",
+    },
     status: {
       type: DataTypes.ENUM("active", "pending", "disabled"),
       allowNull: false,

@@ -1,11 +1,12 @@
 import { Op } from "sequelize";
 import { Category, MenuItem, Vendor } from "../model/index.js";
+import { findVendorForUser } from "./vendorAccess.js";
 
 const MAX_WEEKLY_MENU_ITEMS = 10;
 
 const formatManagedMenuItem = (item) => ({
   id: item.id,
-  vendorId: item.vendorId,
+  vendorCounterId: item.vendorCounterId,
   name: item.name,
   category: item.category?.name,
   price: Number(item.price),
@@ -40,7 +41,7 @@ export const getMenu = async (_req, res) => {
       categories: ["All", ...categories.map((category) => category.name)],
       items: items.map((item) => ({
         id: item.id,
-        vendorId: item.vendorId,
+        vendorCounterId: item.vendorCounterId,
         name: item.name,
         category: item.category?.name,
         price: Number(item.price),
@@ -64,13 +65,17 @@ export const getManageableMenu = async (req, res) => {
     const where = {};
 
     if (req.user.role === "vendor") {
-      const vendor = await Vendor.findOne({ where: { userId: req.user.id } });
+      if (req.user.vendorStaffType === "chef") {
+        return res.status(403).json({ message: "Chef accounts cannot manage the weekly menu" });
+      }
+
+      const vendor = await findVendorForUser(req.user);
 
       if (!vendor) {
         return res.status(404).json({ message: "Vendor profile not found" });
       }
 
-      where.vendorId = vendor.id;
+      where.vendorCounterId = vendor.id;
     }
 
     const items = await MenuItem.findAll({
@@ -111,13 +116,17 @@ export const updateWeeklyMenu = async (req, res) => {
     const where = {};
 
     if (req.user.role === "vendor") {
-      const vendor = await Vendor.findOne({ where: { userId: req.user.id } });
+      if (req.user.vendorStaffType === "chef") {
+        return res.status(403).json({ message: "Chef accounts cannot update the weekly menu" });
+      }
+
+      const vendor = await findVendorForUser(req.user);
 
       if (!vendor) {
         return res.status(404).json({ message: "Vendor profile not found" });
       }
 
-      where.vendorId = vendor.id;
+      where.vendorCounterId = vendor.id;
     }
 
     const manageableItems = await MenuItem.findAll({ where, attributes: ["id"] });
@@ -129,18 +138,17 @@ export const updateWeeklyMenu = async (req, res) => {
       return res.status(403).json({ message: "You can only update menu items you manage" });
     }
 
-    await Promise.all([
-      MenuItem.update(
-        { isAvailable: false },
-        { where: { id: manageableIds } },
-      ),
-      selectedIds.length > 0
-        ? MenuItem.update(
-            { isAvailable: true },
-            { where: { id: selectedIds } },
-          )
-        : Promise.resolve(),
-    ]);
+    await MenuItem.update(
+      { isAvailable: false },
+      { where: { id: manageableIds } },
+    );
+
+    if (selectedIds.length > 0) {
+      await MenuItem.update(
+        { isAvailable: true },
+        { where: { id: selectedIds } },
+      );
+    }
 
     res.status(200).json({
       message: "Weekly menu updated.",

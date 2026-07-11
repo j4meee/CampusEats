@@ -10,8 +10,11 @@ import Vendor from "./vendor.js";
 User.hasOne(Vendor, { foreignKey: "userId", as: "vendorProfile" });
 Vendor.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-Vendor.hasMany(MenuItem, { foreignKey: "vendorId", as: "menuItems" });
-MenuItem.belongsTo(Vendor, { foreignKey: "vendorId", as: "vendor" });
+Vendor.hasMany(User, { foreignKey: "vendorCounterId", as: "staff" });
+User.belongsTo(Vendor, { foreignKey: "vendorCounterId", as: "assignedVendor" });
+
+Vendor.hasMany(MenuItem, { foreignKey: "vendorCounterId", as: "menuItems" });
+MenuItem.belongsTo(Vendor, { foreignKey: "vendorCounterId", as: "vendor" });
 
 Category.hasMany(MenuItem, { foreignKey: "categoryId", as: "menuItems" });
 MenuItem.belongsTo(Category, { foreignKey: "categoryId", as: "category" });
@@ -19,8 +22,8 @@ MenuItem.belongsTo(Category, { foreignKey: "categoryId", as: "category" });
 User.hasMany(Order, { foreignKey: "studentId", as: "orders" });
 Order.belongsTo(User, { foreignKey: "studentId", as: "student" });
 
-Vendor.hasMany(Order, { foreignKey: "vendorId", as: "orders" });
-Order.belongsTo(Vendor, { foreignKey: "vendorId", as: "vendor" });
+Vendor.hasMany(Order, { foreignKey: "vendorCounterId", as: "orders" });
+Order.belongsTo(Vendor, { foreignKey: "vendorCounterId", as: "vendor" });
 
 Order.hasMany(OrderItem, { foreignKey: "orderId", as: "items" });
 OrderItem.belongsTo(Order, { foreignKey: "orderId", as: "order" });

@@ -2,6 +2,8 @@ export const USER_ROLES = ["student", "vendor", "admin"];
 
 export const USER_STATUSES = ["active", "pending", "disabled"];
 
+export const VENDOR_STAFF_TYPES = ["cashier", "chef"];
+
 export const PRIVILEGES = {
   VIEW_MENU: "view_menu",
   MANAGE_MENU: "manage_menu",

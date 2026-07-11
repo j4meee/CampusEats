@@ -26,27 +26,38 @@ const statusText = {
 export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
   const [currentOrder, setCurrentOrder] = useState(order);
   const [pickupError, setPickupError] = useState("");
+  const isMultiOrder = Array.isArray(currentOrder);
+  const currentOrders = Array.isArray(currentOrder) ? currentOrder : currentOrder ? [currentOrder] : [];
 
   useEffect(() => {
     setCurrentOrder(order);
   }, [order]);
 
   useEffect(() => {
-    if (!currentOrder?.id || ["picked_up", "cancelled"].includes(currentOrder.status)) return;
+    const ordersToPoll = Array.isArray(currentOrder) ? currentOrder : currentOrder ? [currentOrder] : [];
+
+    if (ordersToPoll.length === 0 || ordersToPoll.every((item) => ["picked_up", "cancelled"].includes(item.status))) return;
 
     const interval = setInterval(async () => {
       try {
-        const data = await fetchJson(`/api/orders/${currentOrder.id}`);
-        setCurrentOrder(data.order);
+        const orders = await Promise.all(
+          ordersToPoll.map(async (item) => {
+            if (["picked_up", "cancelled"].includes(item.status)) return item;
+            const data = await fetchJson(`/api/orders/${item.id}`);
+            return data.order;
+          }),
+        );
+
+        setCurrentOrder(isMultiOrder ? orders : orders[0]);
       } catch (error) {
         console.error(error);
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [currentOrder?.id, currentOrder?.status]);
+  }, [currentOrder, isMultiOrder]);
 
-  if (!currentOrder) {
+  if (currentOrders.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafaf8] px-4 text-center text-gray-500">
         No active order found.
@@ -54,26 +65,39 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
     );
   }
 
-  const currentStep = statusStep[currentOrder.status] || 1;
-  const isReady = currentOrder.status === "ready";
-  const isCancelled = currentOrder.status === "cancelled";
-  const pickupLocation = currentOrder.pickupLocation || currentOrder.vendor?.pickupLocation || "Pickup counter";
-  const estimatedTime = currentOrder.estimatedReadyAt
-    ? new Date(currentOrder.estimatedReadyAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const allReady = currentOrders.every((item) => item.status === "ready" || item.status === "picked_up");
+  const allCancelled = currentOrders.every((item) => item.status === "cancelled");
+  const activeOrder = currentOrders.find((item) => !["picked_up", "cancelled"].includes(item.status)) || currentOrders[0];
+  const headerStatus = allCancelled ? "cancelled" : allReady ? "ready" : activeOrder.status;
+  const isReady = headerStatus === "ready";
+  const isCancelled = headerStatus === "cancelled";
+  const orderNumbers = currentOrders.map((item) => item.orderNumber).join(", ");
+  const currentStep = statusStep[headerStatus] || 1;
+  const estimatedTime = activeOrder.estimatedReadyAt
+    ? new Date(activeOrder.estimatedReadyAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "soon";
 
   const confirmPickup = async () => {
     setPickupError("");
 
     try {
-      const data = await fetchJson(`/api/orders/${currentOrder.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "picked_up" }),
-      });
+      const readyOrders = currentOrders.filter((item) => item.status === "ready");
+      const updatedOrders = await Promise.all(
+        readyOrders.map(async (item) => {
+          const data = await fetchJson(`/api/orders/${item.id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "picked_up" }),
+          });
 
-      setCurrentOrder(data.order);
-      onPickup(data.order);
+          return data.order;
+        }),
+      );
+      const updatedById = new Map(updatedOrders.map((item) => [item.id, item]));
+      const nextOrders = currentOrders.map((item) => updatedById.get(item.id) || item);
+
+      setCurrentOrder(isMultiOrder ? nextOrders : nextOrders[0]);
+      onPickup(isMultiOrder ? nextOrders : nextOrders[0]);
     } catch (error) {
       setPickupError(error.message || "Failed to confirm pickup");
     }
@@ -93,17 +117,17 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
               : <ChefHat className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             }
           </div>
-          <h2 className="text-white">{statusText[currentOrder.status] || "Order in progress"}</h2>
+          <h2 className="text-white">{statusText[headerStatus] || "Order in progress"}</h2>
           <p className="text-white/80 text-sm sm:text-base mt-1">
             {isCancelled
-              ? "The vendor cannot prepare this order in time."
+              ? "The vendor counters cannot prepare these orders in time."
               : isReady
-                ? `Please pick up at ${pickupLocation}`
+                ? "Please pick up at each assigned counter."
                 : `Estimated ready at ${estimatedTime}`}
           </p>
           <div className="mt-3 sm:mt-4 inline-block bg-white/20 rounded-xl px-4 sm:px-5 py-1.5 sm:py-2">
             <p className="text-white text-sm sm:text-base">
-              Order <span className="font-medium">{currentOrder.orderNumber}</span>
+              Order <span className="font-medium">{orderNumbers}</span>
             </p>
           </div>
         </div>
@@ -153,13 +177,37 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 px-4 sm:px-5 py-4 sm:py-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-3">Your Items</p>
-            <div className="space-y-2 sm:space-y-2.5">
-              {currentOrder.items.map((item) => (
-                <div key={item.id} className="flex items-center gap-2.5 sm:gap-3">
-                  <span className="text-xl sm:text-2xl">{item.imageLabel || "IT"}</span>
-                  <span className="text-sm sm:text-base text-gray-700 flex-1">{item.name}</span>
-                  <span className="text-xs sm:text-sm text-gray-400">x{item.quantity}</span>
+            <p className="text-xs sm:text-sm text-gray-400 mb-3">Your Counter Orders</p>
+            <div className="space-y-4">
+              {currentOrders.map((counterOrder) => (
+                <div key={counterOrder.id} className="border-b border-gray-50 last:border-b-0 pb-3 last:pb-0">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <p className="text-sm sm:text-base text-gray-900">{counterOrder.vendor?.stallName || "Vendor Counter"}</p>
+                      <p className="text-xs sm:text-sm text-gray-400">{counterOrder.orderNumber}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      counterOrder.status === "cancelled"
+                        ? "bg-red-50 text-red-600"
+                        : ["ready", "picked_up"].includes(counterOrder.status)
+                          ? "bg-green-50 text-green-600"
+                          : "bg-orange-50 text-[#f97316]"
+                    }`}>
+                      {counterOrder.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="space-y-2 sm:space-y-2.5">
+                    {counterOrder.items.map((item) => (
+                      <div key={item.id} className="flex items-center gap-2.5 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">{item.imageLabel || "IT"}</span>
+                        <span className="text-sm sm:text-base text-gray-700 flex-1">{item.name}</span>
+                        <span className="text-xs sm:text-sm text-gray-400">x{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {counterOrder.rejectionReason && (
+                    <p className="mt-2 text-xs sm:text-sm text-red-500">Reason: {counterOrder.rejectionReason}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -179,8 +227,14 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
               <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#f97316] mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm sm:text-base text-gray-800">Pickup Location</p>
-                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">{pickupLocation}</p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Show your order number at pickup.</p>
+                <div className="mt-0.5 space-y-1">
+                  {currentOrders.map((counterOrder) => (
+                    <p key={counterOrder.id} className="text-xs sm:text-sm text-gray-600">
+                      {counterOrder.vendor?.stallName || "Vendor Counter"}: {counterOrder.pickupLocation || counterOrder.vendor?.pickupLocation || "Pickup counter"}
+                    </p>
+                  ))}
+                </div>
+                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Show the matching order number at each counter.</p>
               </div>
             </div>
           )}

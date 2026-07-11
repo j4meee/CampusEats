@@ -14,10 +14,6 @@ const Vendor = sequelize.define(
       allowNull: false,
       field: "user_id",
     },
-    name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
     stallName: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -35,7 +31,7 @@ const Vendor = sequelize.define(
     },
   },
   {
-    tableName: "vendors",
+    tableName: "vendor_counters",
     timestamps: true,
   },
 );

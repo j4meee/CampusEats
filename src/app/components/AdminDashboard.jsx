@@ -15,6 +15,8 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
     name: "",
     email: "",
     password: "",
+    vendorCounterId: "",
+    vendorStaffType: "cashier",
     stallName: "",
     pickupLocation: "",
   });
@@ -60,7 +62,20 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   }, [vendorError]);
 
   const updateVendorForm = (field, value) => {
-    setVendorForm((current) => ({ ...current, [field]: value }));
+    setVendorForm((current) => {
+      if (field === "vendorCounterId") {
+        const selectedVendor = dashboard.vendors.find((vendor) => String(vendor.id) === value);
+
+        return {
+          ...current,
+          vendorCounterId: value,
+          stallName: selectedVendor?.stall || "",
+          pickupLocation: selectedVendor?.pickupLocation || "",
+        };
+      }
+
+      return { ...current, [field]: value };
+    });
     setVendorError("");
     setVendorMessage("");
   };
@@ -81,6 +96,8 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
         name: "",
         email: "",
         password: "",
+        vendorCounterId: "",
+        vendorStaffType: "cashier",
         stallName: "",
         pickupLocation: "",
       });
@@ -95,7 +112,7 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   };
 
   const handleDeleteVendor = async (vendor) => {
-    const confirmed = window.confirm(`Delete ${vendor.name}'s vendor account?`);
+    const confirmed = window.confirm(`Delete ${vendor.name} counter and its staff accounts?`);
 
     if (!confirmed) return;
 
@@ -156,13 +173,14 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
         <WeeklyMenuManager
           title="Weekly Menu"
           subtitle="Choose up to 10 active menu items for students. Admin can manage all vendors."
+          onMenuSaved={loadDashboard}
         />
 
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-gray-900">Vendor Accounts</h2>
-              <p className="text-xs sm:text-sm text-gray-400">Admin creates vendor accounts. Vendors cannot self-register.</p>
+              <h2 className="text-gray-900">Vendor Counters & Staff</h2>
+              <p className="text-xs sm:text-sm text-gray-400">Admin creates counters and assigns cashier or chef accounts.</p>
             </div>
             <button
               type="button"
@@ -170,24 +188,24 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
               className="shrink-0 bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Vendor
+              Add Staff
             </button>
           </div>
           {showVendorForm && (
             <div className="px-4 sm:px-5 py-4 border-b border-gray-100 bg-gray-50">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
-                  label="Owner Name"
+                  label="Staff Name"
                   value={vendorForm.name}
                   onChange={(value) => updateVendorForm("name", value)}
-                  placeholder="Vendor owner name"
+                  placeholder="Staff member name"
                 />
                 <Input
                   label="Email"
                   type="email"
                   value={vendorForm.email}
                   onChange={(value) => updateVendorForm("email", value)}
-                  placeholder="vendor@example.com"
+                  placeholder="staff@example.com"
                 />
                 <Input
                   label="Temporary Password"
@@ -196,11 +214,38 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
                   onChange={(value) => updateVendorForm("password", value)}
                   placeholder="Create a password"
                 />
+                <label className="block">
+                  <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Counter Assignment</span>
+                  <select
+                    value={vendorForm.vendorCounterId}
+                    onChange={(event) => updateVendorForm("vendorCounterId", event.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                  >
+                    <option value="">Create new counter</option>
+                    {dashboard.vendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.stall}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Vendor Staff Type</span>
+                  <select
+                    value={vendorForm.vendorStaffType}
+                    onChange={(event) => updateVendorForm("vendorStaffType", event.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                  >
+                    <option value="cashier">Cashier</option>
+                    <option value="chef">Chef</option>
+                  </select>
+                </label>
                 <Input
                   label="Stall Name"
                   value={vendorForm.stallName}
                   onChange={(value) => updateVendorForm("stallName", value)}
                   placeholder="Counter A"
+                  disabled={Boolean(vendorForm.vendorCounterId)}
                 />
                 <div className="sm:col-span-2">
                   <Input
@@ -208,6 +253,7 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
                     value={vendorForm.pickupLocation}
                     onChange={(value) => updateVendorForm("pickupLocation", value)}
                     placeholder="Block A Canteen - Counter A"
+                    disabled={Boolean(vendorForm.vendorCounterId)}
                   />
                 </div>
               </div>
@@ -256,7 +302,14 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
               <div key={vendor.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{vendor.name}</p>
-                  <p className="text-xs sm:text-sm text-gray-400 truncate">{vendor.email} - {vendor.stall}</p>
+                  <p className="text-xs sm:text-sm text-gray-400 truncate">
+                    {vendor.pickupLocation || "Pickup location not set"}
+                  </p>
+                  {vendor.staff?.length > 0 && (
+                    <p className="text-xs text-gray-400 truncate">
+                      Staff: {vendor.staff.map((staff) => `${staff.name} (${staff.vendorStaffType || "cashier"})`).join(", ")}
+                    </p>
+                  )}
                 </div>
                 <div className="shrink-0 flex items-center gap-2">
                   <span className={`text-xs px-2 py-1 rounded-full ${
@@ -302,7 +355,7 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   );
 }
 
-function Input({ label, type = "text", value, onChange, placeholder }) {
+function Input({ label, type = "text", value, onChange, placeholder, disabled = false }) {
   return (
     <label className="block">
       <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">{label}</span>
@@ -311,7 +364,8 @@ function Input({ label, type = "text", value, onChange, placeholder }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+        disabled={disabled}
+        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all disabled:bg-gray-100 disabled:text-gray-400"
       />
     </label>
   );

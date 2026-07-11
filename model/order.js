@@ -20,10 +20,10 @@ const Order = sequelize.define(
       allowNull: false,
       field: "student_id",
     },
-    vendorId: {
+    vendorCounterId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: "vendor_id",
+      field: "vendor_counter_id",
     },
     status: {
       type: DataTypes.ENUM("pending", "preparing", "ready", "picked_up", "cancelled"),
@@ -34,6 +34,11 @@ const Order = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
       field: "special_request",
+    },
+    rejectionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "rejection_reason",
     },
     subtotal: {
       type: DataTypes.DECIMAL(10, 2),
@@ -52,6 +57,12 @@ const Order = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
       field: "picked_up_at",
+    },
+    stockReserved: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "stock_reserved",
     },
   },
   {

@@ -1,5 +1,11 @@
 import bcrypt from "bcryptjs";
-import { getRolePrivileges, ROLE_PRIVILEGES, USER_ROLES, USER_STATUSES } from "../config/accessControl.js";
+import {
+  getRolePrivileges,
+  ROLE_PRIVILEGES,
+  USER_ROLES,
+  USER_STATUSES,
+  VENDOR_STAFF_TYPES,
+} from "../config/accessControl.js";
 import sequelize from "../db/database.js";
 import { Category, MenuItem, Order, User, Vendor } from "../model/index.js";
 
@@ -66,7 +72,7 @@ const createStarterMenuForVendor = async (vendor, transaction) => {
 
   await MenuItem.bulkCreate(
     buildStarterMenuItems(vendor.stallName).map((item) => ({
-      vendorId: vendor.id,
+      vendorCounterId: vendor.id,
       categoryId: categoryByName.get(item.category),
       name: item.name,
       description: item.description,
@@ -125,6 +131,7 @@ export const createUser = async (req, res) => {
       email,
       password,
       role = "student",
+      vendorStaffType = null,
       status = "active",
     } = req.body;
 
@@ -140,11 +147,16 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid user status" });
     }
 
+    if (role === "vendor" && vendorStaffType && !VENDOR_STAFF_TYPES.includes(vendorStaffType)) {
+      return res.status(400).json({ message: "Invalid vendor staff type" });
+    }
+
     const user = await User.create({
       name: name.trim(),
       email: email.trim().toLowerCase(),
       password: await bcrypt.hash(password, 12),
       role,
+      vendorStaffType: role === "vendor" ? vendorStaffType : null,
       status,
     });
 
@@ -162,14 +174,28 @@ export const createVendorUser = async (req, res) => {
       name,
       email,
       password,
+      vendorCounterId,
+      vendorStaffType = "cashier",
       stallName,
       pickupLocation,
       status = "active",
     } = req.body;
 
-    if (!name?.trim() || !email?.trim() || !password || !stallName?.trim() || !pickupLocation?.trim()) {
+    const existingVendorCounterId = Number(vendorCounterId) || null;
+
+    if (!name?.trim() || !email?.trim() || !password) {
       await transaction.rollback();
-      return res.status(400).json({ message: "Name, email, password, stall name, and pickup location are required" });
+      return res.status(400).json({ message: "Name, email, and password are required" });
+    }
+
+    if (!existingVendorId && (!stallName?.trim() || !pickupLocation?.trim())) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Stall name and pickup location are required for a new counter" });
+    }
+
+    if (!VENDOR_STAFF_TYPES.includes(vendorStaffType)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Invalid vendor staff type" });
     }
 
     if (!USER_STATUSES.includes(status)) {
@@ -185,29 +211,41 @@ export const createVendorUser = async (req, res) => {
       return res.status(409).json({ message: "Email is already registered" });
     }
 
+    const assignedVendor = existingVendorCounterId
+      ? await Vendor.findByPk(existingVendorCounterId, { transaction })
+      : null;
+
+    if (existingVendorCounterId && !assignedVendor) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Vendor counter not found" });
+    }
+
     const user = await User.create(
       {
         name: name.trim(),
         email: normalizedEmail,
         password: await bcrypt.hash(password, 12),
         role: "vendor",
+        vendorCounterId: assignedVendor?.id || null,
+        vendorStaffType,
         status,
       },
       { transaction },
     );
 
-    const vendor = await Vendor.create(
-      {
-        userId: user.id,
-        name: name.trim(),
-        stallName: stallName.trim(),
-        pickupLocation: pickupLocation.trim(),
-        status,
-      },
-      { transaction },
-    );
+    const vendor = assignedVendor || await Vendor.create(
+        {
+          userId: user.id,
+          stallName: stallName.trim(),
+          pickupLocation: pickupLocation.trim(),
+          status,
+        },
+        { transaction },
+      );
 
-    await createStarterMenuForVendor(vendor, transaction);
+    if (!assignedVendor) {
+      await user.update({ vendorCounterId: vendor.id }, { transaction });
+    }
 
     await transaction.commit();
 
@@ -239,7 +277,7 @@ export const deleteVendorUser = async (req, res) => {
     }
 
     const orderCount = await Order.count({
-      where: { vendorId: vendor.id },
+      where: { vendorCounterId: vendor.id },
       transaction,
     });
 
@@ -249,7 +287,7 @@ export const deleteVendorUser = async (req, res) => {
         vendor.user?.update({ status: "disabled" }, { transaction }),
         MenuItem.update(
           { isAvailable: false },
-          { where: { vendorId: vendor.id }, transaction },
+          { where: { vendorCounterId: vendor.id }, transaction },
         ),
       ]);
 
@@ -259,7 +297,7 @@ export const deleteVendorUser = async (req, res) => {
       });
     }
 
-    await MenuItem.destroy({ where: { vendorId: vendor.id }, transaction });
+    await MenuItem.destroy({ where: { vendorCounterId: vendor.id }, transaction });
     await vendor.destroy({ transaction });
 
     if (vendor.user) {
@@ -285,7 +323,7 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const allowedFields = ["name", "email", "studentId", "role", "status", "password"];
+    const allowedFields = ["name", "email", "studentId", "role", "status", "password", "vendorCounterId", "vendorStaffType"];
     const updateData = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key)),
     );
@@ -296,6 +334,10 @@ export const updateUser = async (req, res) => {
 
     if (updateData.status && !USER_STATUSES.includes(updateData.status)) {
       return res.status(400).json({ message: "Invalid user status" });
+    }
+
+    if (updateData.vendorStaffType && !VENDOR_STAFF_TYPES.includes(updateData.vendorStaffType)) {
+      return res.status(400).json({ message: "Invalid vendor staff type" });
     }
 
     if (updateData.email) {

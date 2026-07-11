@@ -1,4 +1,5 @@
 import { Category, MenuItem, Order, OrderItem, User, Vendor } from "../model/index.js";
+import { findVendorForUser } from "./vendorAccess.js";
 
 const formatOrder = (order) => ({
   id: order.orderNumber,
@@ -17,7 +18,10 @@ export const getAdminDashboard = async (_req, res) => {
     const [vendors, orders] = await Promise.all([
       Vendor.findAll({
         where: { status: ["active", "pending"] },
-        include: [{ model: User, as: "user", attributes: ["email"] }],
+        include: [
+          { model: User, as: "user", attributes: ["email"] },
+          { model: User, as: "staff", attributes: ["id", "name", "email", "vendorStaffType", "status"] },
+        ],
         order: [["createdAt", "DESC"]],
       }),
       Order.findAll({
@@ -44,10 +48,12 @@ export const getAdminDashboard = async (_req, res) => {
       },
       vendors: vendors.map((vendor) => ({
         id: vendor.id,
-        name: vendor.name,
+        name: vendor.stallName,
         email: vendor.user?.email,
         stall: vendor.stallName,
+        pickupLocation: vendor.pickupLocation,
         status: vendor.status,
+        staff: vendor.staff || [],
       })),
       orders: orders.map(formatOrder),
     });
@@ -62,7 +68,11 @@ export const getVendorDashboard = async (req, res) => {
       return res.status(403).json({ message: "You do not have permission to view this vendor dashboard" });
     }
 
-    const vendor = await Vendor.findOne({ where: { userId: req.params.userId } });
+    const targetUser = req.user.role === "vendor"
+      ? req.user
+      : await User.findByPk(req.params.userId);
+
+    const vendor = await findVendorForUser(targetUser);
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor profile not found" });
@@ -70,12 +80,12 @@ export const getVendorDashboard = async (req, res) => {
 
     const [menuItems, orders] = await Promise.all([
       MenuItem.findAll({
-        where: { vendorId: vendor.id },
+        where: { vendorCounterId: vendor.id },
         include: [{ model: Category, as: "category", attributes: ["name"] }],
         order: [["name", "ASC"]],
       }),
       Order.findAll({
-        where: { vendorId: vendor.id },
+        where: { vendorCounterId: vendor.id },
         include: [
           { model: User, as: "student", attributes: ["name", "studentId"] },
           {
@@ -90,6 +100,7 @@ export const getVendorDashboard = async (req, res) => {
 
     res.status(200).json({
       vendor,
+      staffType: targetUser?.vendorStaffType || "cashier",
       summary: {
         pendingOrders: orders.filter((order) => order.status === "pending").length,
         readyOrders: orders.filter((order) => order.status === "ready").length,

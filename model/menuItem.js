@@ -9,10 +9,10 @@ const MenuItem = sequelize.define(
       autoIncrement: true,
       primaryKey: true,
     },
-    vendorId: {
+    vendorCounterId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: "vendor_id",
+      field: "vendor_counter_id",
     },
     categoryId: {
       type: DataTypes.INTEGER,
@@ -67,8 +67,8 @@ const MenuItem = sequelize.define(
     timestamps: true,
     indexes: [
       {
-        name: "idx_menu_items_vendor_id",
-        fields: ["vendor_id"],
+        name: "idx_menu_items_vendor_counter_id",
+        fields: ["vendor_counter_id"],
       },
       {
         name: "idx_menu_items_category_id",
@@ -83,8 +83,8 @@ const MenuItem = sequelize.define(
         fields: ["stock_quantity"],
       },
       {
-        name: "idx_menu_items_vendor_name",
-        fields: ["vendor_id", "name"],
+        name: "idx_menu_items_vendor_counter_name",
+        fields: ["vendor_counter_id", "name"],
       },
     ],
   },

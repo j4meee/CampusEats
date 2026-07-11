@@ -48,7 +48,7 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
         }),
       });
 
-      onConfirm(data.order);
+      onConfirm(data.orders?.length > 1 ? data.orders : data.order);
     } catch (err) {
       setQrScanned(false);
       setError(err.message || "Payment failed. Please try again.");
