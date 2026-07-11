@@ -12,6 +12,7 @@ const publicUser = (user) => {
   const { password: _password, ...safeUser } = user.toJSON();
   return {
     ...safeUser,
+    walletBalance: Number(safeUser.walletBalance || 0),
     privileges: getRolePrivileges(safeUser.role),
   };
 };
@@ -190,6 +191,7 @@ export const registerStudent = async (req, res) => {
       email,
       password: await bcrypt.hash(password, 12),
       role: "student",
+      walletBalance: 12.4,
       status: "active",
     });
 

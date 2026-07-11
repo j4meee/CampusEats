@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock, LogOut, XCircle, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Clock, LogOut, Minus, Plus, Search, Wallet, XCircle, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
@@ -13,6 +13,14 @@ export function VendorDashboard({ user, onLogout }) {
     orders: [],
   });
   const [loading, setLoading] = useState(true);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentResults, setStudentResults] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpNote, setTopUpNote] = useState("");
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [topUpMessage, setTopUpMessage] = useState("");
+  const [topUpError, setTopUpError] = useState("");
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async ({ showLoading = false, force = false } = {}) => {
@@ -81,6 +89,82 @@ export function VendorDashboard({ user, onLogout }) {
     }
   };
 
+  const updateItemStock = async (item, nextStockQuantity) => {
+    const stockQuantity = Math.max(0, nextStockQuantity);
+
+    try {
+      const data = await fetchJson(`/api/menu/${item.id}/stock`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stockQuantity }),
+      });
+
+      setDashboard((current) => ({
+        ...current,
+        menu: current.menu.map((menuItem) =>
+          menuItem.id === item.id
+            ? { ...menuItem, stockQuantity: data.item.stockQuantity }
+            : menuItem,
+        ),
+      }));
+    } catch (error) {
+      console.error(error);
+      window.alert(error.message || "Failed to update stock.");
+    }
+  };
+
+  const searchStudents = async () => {
+    setTopUpError("");
+    setTopUpMessage("");
+    setTopUpLoading(true);
+
+    try {
+      const data = await fetchJson(`/api/users/students/search?q=${encodeURIComponent(studentSearch)}`);
+
+      setStudentResults(data.students || []);
+    } catch (error) {
+      setTopUpError(error.message || "Failed to search students.");
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
+
+  const topUpStudent = async () => {
+    setTopUpError("");
+    setTopUpMessage("");
+
+    if (!selectedStudent) {
+      setTopUpError("Please select a student first.");
+      return;
+    }
+
+    setTopUpLoading(true);
+
+    try {
+      const data = await fetchJson("/api/users/wallet/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          amount: Number(topUpAmount),
+          note: topUpNote,
+        }),
+      });
+
+      setSelectedStudent(data.student);
+      setStudentResults((current) =>
+        current.map((student) => student.id === data.student.id ? data.student : student),
+      );
+      setTopUpAmount("");
+      setTopUpNote("");
+      setTopUpMessage(`${data.student.name} balance is now $${data.student.walletBalance.toFixed(2)}.`);
+    } catch (error) {
+      setTopUpError(error.message || "Failed to top up wallet.");
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
+
   const nextOrderAction = (order) => {
     if ((dashboard.staffType || user?.vendorStaffType) === "chef" && order.status === "preparing") {
       return { label: "Ready", status: "ready" };
@@ -126,10 +210,122 @@ export function VendorDashboard({ user, onLogout }) {
           <SummaryTile icon={UtensilsCrossed} label="Weekly Items" value={String(dashboard.summary.weeklyMenuItems || 0)} />
         </div>
 
+        {staffType !== "chef" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-[#f97316]" />
+              <div>
+                <h2 className="text-gray-900">Student Wallet Top Up</h2>
+                <p className="text-xs sm:text-sm text-gray-400">Add balance after receiving cash from a student.</p>
+              </div>
+            </div>
+            <div className="px-4 sm:px-5 py-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                <input
+                  value={studentSearch}
+                  onChange={(event) => setStudentSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") searchStudents();
+                  }}
+                  placeholder="Search student by name, email, or student ID"
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={searchStudents}
+                  disabled={topUpLoading}
+                  className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                  Search
+                </button>
+              </div>
+
+              {studentResults.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {studentResults.map((student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setTopUpError("");
+                        setTopUpMessage("");
+                      }}
+                      className={`text-left border rounded-lg px-3 py-2.5 transition-colors ${
+                        selectedStudent?.id === student.id
+                          ? "border-[#f97316] bg-orange-50"
+                          : "border-gray-100 hover:bg-gray-50"
+                      }`}
+                    >
+                      <p className="text-sm text-gray-900">{student.name}</p>
+                      <p className="text-xs text-gray-400">{student.studentId || student.email}</p>
+                      <p className="text-xs text-[#f97316]">Balance ${student.walletBalance.toFixed(2)}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selectedStudent && (
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                  <label className="block">
+                    <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Selected Student</span>
+                    <input
+                      value={`${selectedStudent.name} - $${selectedStudent.walletBalance.toFixed(2)}`}
+                      readOnly
+                      className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-500 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Top-up Amount</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={topUpAmount}
+                      onChange={(event) => setTopUpAmount(event.target.value)}
+                      placeholder="10.00"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={topUpStudent}
+                    disabled={topUpLoading}
+                    className="bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2.5 text-sm disabled:opacity-70 disabled:hover:bg-green-500 transition-colors"
+                  >
+                    {topUpLoading ? "Saving..." : "Top Up"}
+                  </button>
+                  <label className="block sm:col-span-3">
+                    <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Note</span>
+                    <input
+                      value={topUpNote}
+                      onChange={(event) => setTopUpNote(event.target.value)}
+                      placeholder="Cash received at counter"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {topUpError && (
+                <p className="text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {topUpError}
+                </p>
+              )}
+              {topUpMessage && (
+                <p className="text-xs sm:text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                  {topUpMessage}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
         <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Current Weekly Menu</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Items currently visible to students for this vendor.</p>
+            <p className="text-xs sm:text-sm text-gray-400">Adjust stock here after direct canteen sales or restocking.</p>
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading weekly menu..." />}
@@ -142,7 +338,31 @@ export function VendorDashboard({ user, onLogout }) {
                     {item.category || "Menu item"} - {item.stockQuantity} left
                   </p>
                 </div>
-                <span className="shrink-0 text-[#f97316]">${item.price.toFixed(2)}</span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="hidden sm:inline text-[#f97316]">${item.price.toFixed(2)}</span>
+                  <div className="flex items-center rounded-lg border border-gray-100 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => updateItemStock(item, item.stockQuantity - 1)}
+                      disabled={item.stockQuantity <= 0}
+                      className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+                      title="Decrease stock"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className={`min-w-10 px-2 text-center ${item.stockQuantity <= 3 ? "text-red-500" : "text-gray-700"}`}>
+                      {item.stockQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateItemStock(item, item.stockQuantity + 1)}
+                      className="w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                      title="Increase stock"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

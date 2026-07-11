@@ -6,6 +6,7 @@ import OrderItem from "./orderItem.js";
 import Payment from "./payment.js";
 import User from "./user.js";
 import Vendor from "./vendor.js";
+import WalletTransaction from "./walletTransaction.js";
 
 User.hasOne(Vendor, { foreignKey: "userId", as: "vendorProfile" });
 Vendor.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -37,6 +38,13 @@ Payment.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 Order.hasOne(Feedback, { foreignKey: "orderId", as: "feedback" });
 Feedback.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 
+User.hasMany(WalletTransaction, { foreignKey: "studentId", as: "walletTransactions" });
+WalletTransaction.belongsTo(User, { foreignKey: "studentId", as: "student" });
+User.hasMany(WalletTransaction, { foreignKey: "cashierId", as: "processedWalletTransactions" });
+WalletTransaction.belongsTo(User, { foreignKey: "cashierId", as: "cashier" });
+Order.hasMany(WalletTransaction, { foreignKey: "orderId", as: "walletTransactions" });
+WalletTransaction.belongsTo(Order, { foreignKey: "orderId", as: "order" });
+
 export {
   Category,
   Feedback,
@@ -46,4 +54,5 @@ export {
   Payment,
   User,
   Vendor,
+  WalletTransaction,
 };

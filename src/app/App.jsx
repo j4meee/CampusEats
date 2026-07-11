@@ -9,7 +9,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { VendorDashboard } from "./components/VendorDashboard";
 import { ProfileScreen } from "./components/ProfileScreen";
 import { StudentActivityScreen } from "./components/StudentActivityScreen";
-import { clearAuthSession, getStoredUser } from "./lib/api";
+import { clearAuthSession, getStoredUser, updateStoredUser } from "./lib/api";
 
 const STEP_LABELS = {
   login: 0,
@@ -89,6 +89,11 @@ export default function App() {
     setCurrentOrder(order);
     setCart([]);
     setScreen("status");
+  };
+
+  const handleUserUpdate = (user) => {
+    setCurrentUser(user);
+    updateStoredUser(user);
   };
 
   const handlePickupConfirmed = (order) => {
@@ -196,6 +201,7 @@ export default function App() {
               specialRequest={specialRequest}
               onBack={() => setScreen("review")}
               onConfirm={handleOrderCreated}
+              onUserUpdate={handleUserUpdate}
             />
           )}
           {screen === "status" && (

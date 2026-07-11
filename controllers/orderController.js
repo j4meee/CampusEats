@@ -1,5 +1,6 @@
 import sequelize from "../db/database.js";
-import { MenuItem, Order, OrderItem, Payment, User, Vendor } from "../model/index.js";
+import { getRolePrivileges } from "../config/accessControl.js";
+import { MenuItem, Order, OrderItem, Payment, User, Vendor, WalletTransaction } from "../model/index.js";
 import { findVendorForUser } from "./vendorAccess.js";
 
 const formatOrder = (order) => ({
@@ -39,6 +40,17 @@ const formatOrder = (order) => ({
       unitPrice: Number(item.unitPrice),
       lineTotal: Number(item.lineTotal),
     })) || [],
+});
+
+const formatUserWallet = (user) => ({
+  id: user.id,
+  name: user.name,
+  studentId: user.studentId,
+  email: user.email,
+  role: user.role,
+  status: user.status,
+  walletBalance: Number(user.walletBalance || 0),
+  privileges: getRolePrivileges(user.role),
 });
 
 const buildOrderNumber = () => {
@@ -160,6 +172,15 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    const checkoutTotal = orderLines.reduce((sum, item) => sum + item.lineTotal, 0);
+
+    if (paymentMethod === "ewallet" && Number(student.walletBalance) < checkoutTotal) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `Insufficient e-wallet balance. Balance: $${Number(student.walletBalance).toFixed(2)}, total: $${checkoutTotal.toFixed(2)}`,
+      });
+    }
+
     const orderLinesByCounter = new Map();
 
     for (const line of orderLines) {
@@ -170,6 +191,7 @@ export const createOrder = async (req, res) => {
     }
 
     const orders = [];
+    let walletRunningTotal = 0;
 
     for (const [vendorCounterId, counterLines] of orderLinesByCounter.entries()) {
       const subtotal = counterLines.reduce((sum, item) => sum + item.lineTotal, 0);
@@ -213,6 +235,21 @@ export const createOrder = async (req, res) => {
         { transaction },
       );
 
+      if (paymentMethod === "ewallet") {
+        walletRunningTotal += subtotal;
+        await WalletTransaction.create(
+          {
+            studentId: student.id,
+            orderId: order.id,
+            type: "payment",
+            amount: subtotal,
+            balanceAfter: Number(student.walletBalance) - walletRunningTotal,
+            note: `Payment for ${order.orderNumber}`,
+          },
+          { transaction },
+        );
+      }
+
       orders.push(order);
     }
 
@@ -225,15 +262,24 @@ export const createOrder = async (req, res) => {
       ),
     );
 
+    if (paymentMethod === "ewallet") {
+      await student.decrement("walletBalance", {
+        by: checkoutTotal,
+        transaction,
+      });
+    }
+
     await transaction.commit();
 
     const savedOrders = await Promise.all(orders.map((order) => findOrderById(order.id)));
     const formattedOrders = savedOrders.map(formatOrder);
+    const updatedStudent = await User.findByPk(student.id);
 
     res.status(201).json({
       order: formattedOrders[0],
       orders: formattedOrders,
       orderCount: formattedOrders.length,
+      user: formatUserWallet(updatedStudent),
     });
   } catch (error) {
     if (!transaction.finished) {
@@ -432,7 +478,12 @@ export const updateOrderStatus = async (req, res) => {
           );
         }
 
-        await Promise.all([
+        const payment = await Payment.findOne({
+          where: { orderId: order.id },
+          transaction,
+        });
+
+        const updates = [
           order.update(
             {
               status,
@@ -441,11 +492,33 @@ export const updateOrderStatus = async (req, res) => {
             },
             { transaction },
           ),
-          Payment.update(
-            { status: "refunded" },
-            { where: { orderId: order.id }, transaction },
-          ),
-        ]);
+        ];
+
+        if (payment) {
+          updates.push(payment.update({ status: "refunded" }, { transaction }));
+
+          if (payment.method === "ewallet") {
+            const refundStudent = await User.findByPk(order.studentId, { transaction });
+            const refundAmount = Number(payment.amount);
+            const balanceAfter = Number(refundStudent.walletBalance || 0) + refundAmount;
+
+            updates.push(refundStudent.update({ walletBalance: balanceAfter }, { transaction }));
+            updates.push(WalletTransaction.create(
+              {
+                studentId: order.studentId,
+                cashierId: req.user.role === "vendor" ? req.user.id : null,
+                orderId: order.id,
+                type: "refund",
+                amount: refundAmount,
+                balanceAfter,
+                note: `Refund for ${order.orderNumber}`,
+              },
+              { transaction },
+            ));
+          }
+        }
+
+        await Promise.all(updates);
 
         await transaction.commit();
       } catch (error) {

@@ -124,6 +124,7 @@ const upsertVendorStaffUser = async ({
       role: "vendor",
       vendorCounterId,
       vendorStaffType,
+      walletBalance: 0,
       status: "active",
     },
   });
@@ -135,6 +136,7 @@ const upsertVendorStaffUser = async ({
     role: "vendor",
     vendorCounterId,
     vendorStaffType,
+    walletBalance: 0,
     status: "active",
   });
 
@@ -178,7 +180,7 @@ const upsertCounter = async (config) => {
 
 const seed = async () => {
   await sequelize.authenticate();
-  await sequelize.sync({ alter: true });
+  await sequelize.sync();
 
   const adminEmail = getRequiredEnv("SEED_ADMIN_EMAIL").trim().toLowerCase();
   const adminPassword = getRequiredEnv("SEED_ADMIN_PASSWORD");
@@ -189,6 +191,7 @@ const seed = async () => {
       email: adminEmail,
       password: await bcrypt.hash(adminPassword, 12),
       role: "admin",
+      walletBalance: 0,
       status: "active",
     },
   });
@@ -200,6 +203,7 @@ const seed = async () => {
     role: "admin",
     vendorCounterId: null,
     vendorStaffType: null,
+    walletBalance: 0,
     status: "active",
   });
 

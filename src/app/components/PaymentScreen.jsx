@@ -7,12 +7,14 @@ const paymentMethods = [
   { id: "ewallet", label: "Student E-Wallet", sub: "Linked to your student ID", icon: Wallet },
 ];
 
-export function PaymentScreen({ total, cart, user, specialRequest, onBack, onConfirm }) {
+export function PaymentScreen({ total, cart, user, specialRequest, onBack, onConfirm, onUserUpdate }) {
   const [selected, setSelected] = useState("qr");
   const [loading, setLoading] = useState(false);
   const [qrScanned, setQrScanned] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(120);
   const [error, setError] = useState("");
+  const walletBalance = Number(user?.walletBalance || 0);
+  const hasEnoughWalletBalance = walletBalance >= total;
 
   useEffect(() => {
     if (selected !== "qr" || qrScanned) return;
@@ -28,6 +30,12 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
 
   const handlePay = async () => {
     setError("");
+
+    if (selected === "ewallet" && !hasEnoughWalletBalance) {
+      setError(`Insufficient e-wallet balance. Balance: $${walletBalance.toFixed(2)}, total: $${total.toFixed(2)}`);
+      return;
+    }
+
     setLoading(true);
 
     if (selected === "qr") {
@@ -47,6 +55,10 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
           })),
         }),
       });
+
+      if (data.user && onUserUpdate) {
+        onUserUpdate(data.user);
+      }
 
       onConfirm(data.orders?.length > 1 ? data.orders : data.order);
     } catch (err) {
@@ -215,15 +227,19 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
 
           {/* E-Wallet balance */}
           {selected === "ewallet" && (
-            <div className="bg-green-50 border border-green-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 flex items-center justify-center">
-                <span className="text-green-600 text-sm sm:text-base">✓</span>
+            <div className={`${hasEnoughWalletBalance ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"} border rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${hasEnoughWalletBalance ? "bg-green-100" : "bg-red-100"}`}>
+                <span className={`${hasEnoughWalletBalance ? "text-green-600" : "text-red-600"} text-sm sm:text-base`}>
+                  {hasEnoughWalletBalance ? "OK" : "!"}
+                </span>
               </div>
               <div>
                 <p className="text-sm sm:text-base text-gray-800">
-                  Balance: <span className="text-green-600">$12.40</span>
+                  Balance: <span className={hasEnoughWalletBalance ? "text-green-600" : "text-red-600"}>${walletBalance.toFixed(2)}</span>
                 </p>
-                <p className="text-xs sm:text-sm text-gray-500">Sufficient for this order</p>
+                <p className="text-xs sm:text-sm text-gray-500">
+                  {hasEnoughWalletBalance ? "Sufficient for this order" : `Need $${(total - walletBalance).toFixed(2)} more`}
+                </p>
               </div>
             </div>
           )}
@@ -245,7 +261,7 @@ export function PaymentScreen({ total, cart, user, specialRequest, onBack, onCon
           {selected === "ewallet" && (
             <button
               onClick={handlePay}
-              disabled={loading}
+              disabled={loading || !hasEnoughWalletBalance}
               className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
             >
               {loading ? (

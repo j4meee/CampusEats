@@ -159,3 +159,51 @@ export const updateWeeklyMenu = async (req, res) => {
     res.status(500).json({ message: "Failed to update weekly menu", error: error.message });
   }
 };
+
+export const updateMenuItemStock = async (req, res) => {
+  try {
+    const stockQuantity = Number(req.body.stockQuantity);
+
+    if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
+      return res.status(400).json({ message: "Stock quantity must be a whole number 0 or higher" });
+    }
+
+    const item = await MenuItem.findByPk(req.params.id, {
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name"] },
+        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
+      ],
+    });
+
+    if (!item) {
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    if (req.user.role === "vendor") {
+      const vendor = await findVendorForUser(req.user);
+
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor profile not found" });
+      }
+
+      if (item.vendorCounterId !== vendor.id) {
+        return res.status(403).json({ message: "You can only update stock for your counter" });
+      }
+    }
+
+    await item.update({ stockQuantity });
+    await item.reload({
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name"] },
+        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
+      ],
+    });
+
+    res.status(200).json({
+      message: "Stock updated.",
+      item: formatManagedMenuItem(item),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update stock", error: error.message });
+  }
+};

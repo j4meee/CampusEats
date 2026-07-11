@@ -16,13 +16,11 @@ const User = sequelize.define(
     studentId: {
       type: DataTypes.STRING,
       allowNull: true,
-      unique: true,
       field: "student_id",
     },
     email: {
       type: DataTypes.STRING,
       allowNull: true,
-      unique: true,
       validate: {
         isEmail: true,
       },
@@ -46,6 +44,12 @@ const User = sequelize.define(
       allowNull: true,
       field: "vendor_staff_type",
     },
+    walletBalance: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 12.4,
+      field: "wallet_balance",
+    },
     status: {
       type: DataTypes.ENUM("active", "pending", "disabled"),
       allowNull: false,
@@ -55,6 +59,10 @@ const User = sequelize.define(
   {
     tableName: "users",
     timestamps: true,
+    indexes: [
+      { name: "student_id", unique: true, fields: ["student_id"] },
+      { name: "email", unique: true, fields: ["email"] },
+    ],
   },
 );
 

@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { Op } from "sequelize";
 import {
   getRolePrivileges,
   ROLE_PRIVILEGES,
@@ -7,7 +8,7 @@ import {
   VENDOR_STAFF_TYPES,
 } from "../config/accessControl.js";
 import sequelize from "../db/database.js";
-import { Category, MenuItem, Order, User, Vendor } from "../model/index.js";
+import { Category, MenuItem, Order, User, Vendor, WalletTransaction } from "../model/index.js";
 
 const starterCategories = ["Mains", "Snacks", "Drinks", "Desserts"];
 
@@ -15,6 +16,7 @@ const publicUser = (user) => {
   const { password: _password, ...safeUser } = user.toJSON();
   return {
     ...safeUser,
+    walletBalance: Number(safeUser.walletBalance || 0),
     privileges: getRolePrivileges(safeUser.role),
   };
 };
@@ -100,6 +102,103 @@ export const getUsers = async (_req, res) => {
   }
 };
 
+export const searchStudents = async (req, res) => {
+  try {
+    if (req.user.role === "vendor" && req.user.vendorStaffType === "chef") {
+      return res.status(403).json({ message: "Chef accounts cannot top up student wallets" });
+    }
+
+    const q = req.query.q?.trim();
+    const where = { role: "student", status: "active" };
+
+    if (q) {
+      where[Op.or] = [
+        { name: { [Op.like]: `%${q}%` } },
+        { email: { [Op.like]: `%${q}%` } },
+        { studentId: { [Op.like]: `%${q}%` } },
+      ];
+    }
+
+    const students = await User.findAll({
+      where,
+      attributes: ["id", "name", "studentId", "email", "walletBalance"],
+      order: [["name", "ASC"]],
+      limit: 20,
+    });
+
+    res.status(200).json({ students: students.map(publicUser) });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to search students", error: error.message });
+  }
+};
+
+export const topUpStudentWallet = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    if (req.user.role === "vendor" && req.user.vendorStaffType === "chef") {
+      await transaction.rollback();
+      return res.status(403).json({ message: "Chef accounts cannot top up student wallets" });
+    }
+
+    const studentId = Number(req.body.studentId);
+    const amount = Number(req.body.amount);
+    const note = req.body.note?.trim() || null;
+
+    if (!studentId) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Student is required" });
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Top-up amount must be greater than 0" });
+    }
+
+    if (amount > 500) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Top-up amount cannot be more than $500 at once" });
+    }
+
+    const student = await User.findByPk(studentId, { transaction });
+
+    if (!student || student.role !== "student" || student.status !== "active") {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Active student account not found" });
+    }
+
+    const balanceAfter = Number(student.walletBalance || 0) + amount;
+
+    await student.update({ walletBalance: balanceAfter }, { transaction });
+
+    const walletTransaction = await WalletTransaction.create(
+      {
+        studentId: student.id,
+        cashierId: req.user.id,
+        type: "topup",
+        amount,
+        balanceAfter,
+        note,
+      },
+      { transaction },
+    );
+
+    await transaction.commit();
+
+    res.status(200).json({
+      message: "Wallet top-up completed.",
+      student: publicUser(student),
+      transaction: walletTransaction,
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
+    res.status(500).json({ message: "Failed to top up wallet", error: error.message });
+  }
+};
+
 export const getAccessControl = (_req, res) => {
   res.status(200).json({
     roles: USER_ROLES,
@@ -157,6 +256,7 @@ export const createUser = async (req, res) => {
       password: await bcrypt.hash(password, 12),
       role,
       vendorStaffType: role === "vendor" ? vendorStaffType : null,
+      walletBalance: role === "student" ? 12.4 : 0,
       status,
     });
 
@@ -188,7 +288,7 @@ export const createVendorUser = async (req, res) => {
       return res.status(400).json({ message: "Name, email, and password are required" });
     }
 
-    if (!existingVendorId && (!stallName?.trim() || !pickupLocation?.trim())) {
+    if (!existingVendorCounterId && (!stallName?.trim() || !pickupLocation?.trim())) {
       await transaction.rollback();
       return res.status(400).json({ message: "Stall name and pickup location are required for a new counter" });
     }
@@ -228,6 +328,7 @@ export const createVendorUser = async (req, res) => {
         role: "vendor",
         vendorCounterId: assignedVendor?.id || null,
         vendorStaffType,
+        walletBalance: 0,
         status,
       },
       { transaction },

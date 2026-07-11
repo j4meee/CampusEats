@@ -7,6 +7,8 @@ import {
   getAccessControl,
   getUserById,
   getUsers,
+  searchStudents,
+  topUpStudentWallet,
   updateUser,
 } from "../controllers/userController.js";
 import { PRIVILEGES } from "../config/accessControl.js";
@@ -17,6 +19,8 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get("/access-control", requirePrivilege(PRIVILEGES.MANAGE_ACCESS_CONTROL), getAccessControl);
+router.get("/students/search", requirePrivilege(PRIVILEGES.MANAGE_ORDERS), searchStudents);
+router.post("/wallet/topup", requirePrivilege(PRIVILEGES.MANAGE_ORDERS), topUpStudentWallet);
 router.get("/", requirePrivilege(PRIVILEGES.MANAGE_USERS), getUsers);
 router.post("/", requirePrivilege(PRIVILEGES.MANAGE_USERS), createUser);
 router.post("/vendors", requirePrivilege(PRIVILEGES.MANAGE_USERS), createVendorUser);

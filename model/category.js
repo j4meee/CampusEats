@@ -12,12 +12,14 @@ const Category = sequelize.define(
     name: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
     },
   },
   {
     tableName: "categories",
     timestamps: true,
+    indexes: [
+      { name: "name", unique: true, fields: ["name"] },
+    ],
   },
 );
 
