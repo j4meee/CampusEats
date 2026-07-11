@@ -29,6 +29,12 @@ const Vendor = sequelize.define(
       allowNull: false,
       defaultValue: "pending",
     },
+    serviceStatus: {
+      type: DataTypes.ENUM("open", "busy", "very_busy", "closed"),
+      allowNull: false,
+      defaultValue: "open",
+      field: "service_status",
+    },
   },
   {
     tableName: "vendor_counters",

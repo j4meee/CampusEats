@@ -137,9 +137,7 @@ export function WeeklyMenuManager({
               className="w-full px-4 sm:px-5 py-3 flex items-center justify-between gap-3 text-left hover:bg-gray-50 transition-colors"
             >
               <div className="min-w-0 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-lg">
-                  {item.emoji || "🍽️"}
-                </div>
+                <MenuThumb item={item} />
                 <div className="min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
                   <p className="text-xs sm:text-sm text-gray-400 truncate">
@@ -163,5 +161,27 @@ export function WeeklyMenuManager({
         })}
       </div>
     </section>
+  );
+}
+
+function MenuThumb({ item }) {
+  const fallback = (item.emoji || item.name || "Menu")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center overflow-hidden shrink-0">
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-xs font-semibold text-[#f97316] px-1 text-center leading-tight">
+          {fallback || "ME"}
+        </span>
+      )}
+    </div>
   );
 }

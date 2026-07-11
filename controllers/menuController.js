@@ -14,8 +14,10 @@ const formatManagedMenuItem = (item) => ({
   prepTimeMinutes: item.prepTimeMinutes,
   tag: item.tag,
   emoji: item.imageLabel,
+  imageUrl: item.imageUrl,
   description: item.description,
   vendor: item.vendor?.stallName,
+  vendorServiceStatus: item.vendor?.serviceStatus,
   pickupLocation: item.vendor?.pickupLocation,
   isAvailable: item.isAvailable,
 });
@@ -31,7 +33,7 @@ export const getMenu = async (_req, res) => {
         },
         include: [
           { model: Category, as: "category", attributes: ["id", "name"] },
-          { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
+          { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation", "serviceStatus"] },
         ],
         order: [["name", "ASC"]],
       }),
@@ -50,8 +52,10 @@ export const getMenu = async (_req, res) => {
         prepTimeMinutes: item.prepTimeMinutes,
         tag: item.tag,
         emoji: item.imageLabel,
+        imageUrl: item.imageUrl,
         description: item.description,
         vendor: item.vendor?.stallName,
+        vendorServiceStatus: item.vendor?.serviceStatus,
         pickupLocation: item.vendor?.pickupLocation,
       })),
     });
@@ -82,7 +86,7 @@ export const getManageableMenu = async (req, res) => {
       where,
       include: [
         { model: Category, as: "category", attributes: ["id", "name"] },
-        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
+        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation", "serviceStatus"] },
       ],
       order: [
         [{ model: Vendor, as: "vendor" }, "stallName", "ASC"],
@@ -171,7 +175,7 @@ export const updateMenuItemStock = async (req, res) => {
     const item = await MenuItem.findByPk(req.params.id, {
       include: [
         { model: Category, as: "category", attributes: ["id", "name"] },
-        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
+        { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation", "serviceStatus"] },
       ],
     });
 

@@ -13,6 +13,7 @@ const formatOrder = (order) => ({
   rejectionReason: order.rejectionReason,
   estimatedReadyAt: order.estimatedReadyAt,
   pickedUpAt: order.pickedUpAt,
+  pickupDeadlineAt: order.pickupDeadlineAt,
   pickupLocation: order.vendor?.pickupLocation,
   vendor: order.vendor
     ? {
@@ -36,6 +37,7 @@ const formatOrder = (order) => ({
       menuItemId: item.menuItemId,
       name: item.menuItem?.name || "Item",
       imageLabel: item.menuItem?.imageLabel,
+      imageUrl: item.menuItem?.imageUrl,
       quantity: item.quantity,
       unitPrice: Number(item.unitPrice),
       lineTotal: Number(item.lineTotal),
@@ -68,7 +70,7 @@ const findOrderById = (id) =>
       {
         model: OrderItem,
         as: "items",
-        include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel"] }],
+        include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel", "imageUrl"] }],
       },
     ],
   });
@@ -82,7 +84,7 @@ const findStudentOrders = (studentId) =>
       {
         model: OrderItem,
         as: "items",
-        include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel"] }],
+        include: [{ model: MenuItem, as: "menuItem", attributes: ["name", "imageLabel", "imageUrl"] }],
       },
     ],
     order: [["createdAt", "DESC"]],
@@ -135,7 +137,7 @@ export const createOrder = async (req, res) => {
 
     const menuItems = await MenuItem.findAll({
       where: { id: requestedItems.map((item) => item.menuItemId) },
-      include: [{ model: Vendor, as: "vendor", attributes: ["id", "pickupLocation"] }],
+      include: [{ model: Vendor, as: "vendor", attributes: ["id", "pickupLocation", "stallName", "serviceStatus"] }],
       transaction,
     });
 
@@ -147,6 +149,15 @@ export const createOrder = async (req, res) => {
     if (menuItems.some((item) => !item.isAvailable)) {
       await transaction.rollback();
       return res.status(400).json({ message: "One or more menu items are no longer available" });
+    }
+
+    const closedCounterItem = menuItems.find((item) => item.vendor?.serviceStatus === "closed");
+
+    if (closedCounterItem) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `${closedCounterItem.vendor?.stallName || "This counter"} is closed and not accepting orders`,
+      });
     }
 
     const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
@@ -362,14 +373,41 @@ export const getStudentNotifications = async (req, res) => {
       }
 
       if (["ready", "picked_up"].includes(order.status)) {
+        const deadline = order.pickupDeadlineAt ? new Date(order.pickupDeadlineAt) : null;
+        const minutesLeft = deadline ? Math.ceil((deadline - new Date()) / 60000) : null;
+
         base.push({
           id: `${order.id}-ready`,
           type: "ready",
           title: "Food ready",
-          message: `Order ${order.orderNumber} is ready for pickup.`,
+          message: deadline
+            ? `Order ${order.orderNumber} is ready for pickup at ${vendor}. Please collect it by ${deadline.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+            : `Order ${order.orderNumber} is ready for pickup.`,
           createdAt: order.updatedAt,
           orderNumber: order.orderNumber,
         });
+
+        if (order.status === "ready" && minutesLeft !== null && minutesLeft <= 3 && minutesLeft > 0) {
+          base.push({
+            id: `${order.id}-pickup-reminder`,
+            type: "pickup_reminder",
+            title: "Pickup reminder",
+            message: `Only ${minutesLeft} min left to pick up order ${order.orderNumber} at ${vendor}.`,
+            createdAt: new Date(),
+            orderNumber: order.orderNumber,
+          });
+        }
+
+        if (order.status === "ready" && minutesLeft !== null && minutesLeft <= 0) {
+          base.push({
+            id: `${order.id}-pickup-overdue`,
+            type: "pickup_overdue",
+            title: "Pickup window ended",
+            message: `The pickup window for order ${order.orderNumber} has ended. Please contact ${vendor}.`,
+            createdAt: new Date(),
+            orderNumber: order.orderNumber,
+          });
+        }
       }
 
       return base;
@@ -529,6 +567,7 @@ export const updateOrderStatus = async (req, res) => {
       await order.update({
         status,
         pickedUpAt: status === "picked_up" ? new Date() : order.pickedUpAt,
+        pickupDeadlineAt: status === "ready" ? new Date(Date.now() + 10 * 60 * 1000) : order.pickupDeadlineAt,
       });
     }
 

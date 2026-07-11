@@ -12,7 +12,6 @@ const Order = sequelize.define(
     orderNumber: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
       field: "order_number",
     },
     studentId: {
@@ -58,6 +57,11 @@ const Order = sequelize.define(
       allowNull: true,
       field: "picked_up_at",
     },
+    pickupDeadlineAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "pickup_deadline_at",
+    },
     stockReserved: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -68,6 +72,9 @@ const Order = sequelize.define(
   {
     tableName: "orders",
     timestamps: true,
+    indexes: [
+      { name: "order_number", unique: true, fields: ["order_number"] },
+    ],
   },
 );
 

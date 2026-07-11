@@ -8,6 +8,7 @@ const formatOrder = (order) => ({
   vendor: order.vendor?.stallName || "Vendor",
   total: Number(order.total),
   status: order.status,
+  pickupDeadlineAt: order.pickupDeadlineAt,
   items: order.items
     ?.map((item) => `${item.menuItem?.name || "Item"} x${item.quantity}`)
     .join(", "),
@@ -53,6 +54,7 @@ export const getAdminDashboard = async (_req, res) => {
         stall: vendor.stallName,
         pickupLocation: vendor.pickupLocation,
         status: vendor.status,
+        serviceStatus: vendor.serviceStatus,
         staff: vendor.staff || [],
       })),
       orders: orders.map(formatOrder),
@@ -100,6 +102,7 @@ export const getVendorDashboard = async (req, res) => {
 
     res.status(200).json({
       vendor,
+      serviceStatus: vendor.serviceStatus,
       staffType: targetUser?.vendorStaffType || "cashier",
       summary: {
         pendingOrders: orders.filter((order) => order.status === "pending").length,
@@ -113,6 +116,8 @@ export const getVendorDashboard = async (req, res) => {
         category: item.category?.name,
         price: Number(item.price),
         stockQuantity: item.stockQuantity,
+        imageUrl: item.imageUrl,
+        emoji: item.imageLabel,
         isAvailable: item.isAvailable,
         status: item.isAvailable ? "Available" : "Sold Out",
         sold: 0,
@@ -121,5 +126,41 @@ export const getVendorDashboard = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch vendor dashboard", error: error.message });
+  }
+};
+
+export const updateVendorServiceStatus = async (req, res) => {
+  try {
+    const allowedStatuses = ["open", "busy", "very_busy", "closed"];
+    const { serviceStatus } = req.body;
+
+    if (!allowedStatuses.includes(serviceStatus)) {
+      return res.status(400).json({ message: "Invalid service status" });
+    }
+
+    if (req.user.role === "vendor" && req.user.vendorStaffType === "chef") {
+      return res.status(403).json({ message: "Chef accounts cannot update counter service status" });
+    }
+
+    const vendor = req.user.role === "vendor"
+      ? await findVendorForUser(req.user)
+      : await Vendor.findByPk(req.params.vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor counter not found" });
+    }
+
+    await vendor.update({ serviceStatus });
+
+    res.status(200).json({
+      message: "Counter service status updated.",
+      vendor: {
+        id: vendor.id,
+        stallName: vendor.stallName,
+        serviceStatus: vendor.serviceStatus,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update service status", error: error.message });
   }
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock, LogOut, Minus, Plus, Search, Wallet, XCircle, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Clock, LayoutDashboard, LogOut, Minus, Plus, Search, Settings, Store, Wallet, XCircle, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
@@ -9,6 +9,8 @@ export function VendorDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState({
     summary: { pendingOrders: 0, readyOrders: 0, menuItems: 0, weeklyMenuItems: 0 },
     staffType: user?.vendorStaffType || "cashier",
+    serviceStatus: "open",
+    vendor: null,
     menu: [],
     orders: [],
   });
@@ -21,6 +23,7 @@ export function VendorDashboard({ user, onLogout }) {
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpMessage, setTopUpMessage] = useState("");
   const [topUpError, setTopUpError] = useState("");
+  const [activeSection, setActiveSection] = useState("dashboard");
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async ({ showLoading = false, force = false } = {}) => {
@@ -113,6 +116,28 @@ export function VendorDashboard({ user, onLogout }) {
     }
   };
 
+  const updateServiceStatus = async (serviceStatus) => {
+    try {
+      const vendorId = dashboard.vendor?.id || user?.vendorCounterId || 0;
+      const data = await fetchJson(`/api/dashboard/vendor/${vendorId}/service-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceStatus }),
+      });
+
+      setDashboard((current) => ({
+        ...current,
+        serviceStatus: data.vendor.serviceStatus,
+        vendor: current.vendor
+          ? { ...current.vendor, serviceStatus: data.vendor.serviceStatus }
+          : data.vendor,
+      }));
+    } catch (error) {
+      console.error(error);
+      window.alert(error.message || "Failed to update counter status.");
+    }
+  };
+
   const searchStudents = async () => {
     setTopUpError("");
     setTopUpMessage("");
@@ -175,6 +200,8 @@ export function VendorDashboard({ user, onLogout }) {
 
   const weeklyMenuItems = dashboard.menu.filter((item) => item.isAvailable);
   const staffType = dashboard.staffType || user?.vendorStaffType || "cashier";
+  const serviceStatus = dashboard.serviceStatus || dashboard.vendor?.serviceStatus || "open";
+  const serviceStatusMeta = getServiceStatusMeta(serviceStatus);
   const visibleOrders = dashboard.orders.filter((order) =>
     staffType === "chef"
       ? ["preparing", "ready"].includes(order.status)
@@ -182,9 +209,25 @@ export function VendorDashboard({ user, onLogout }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#fafaf8]">
+    <div className="min-h-screen bg-[#fafaf8] lg:grid lg:grid-cols-[260px_1fr]">
+      <VendorSidebar
+        title="CampusEats"
+        subtitle={staffType === "chef" ? "Chef Dashboard" : "Cashier Dashboard"}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        items={[
+          { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+          ...(staffType !== "chef" ? [{ id: "wallet", label: "Wallet Top Up", icon: Wallet }] : []),
+          { id: "menu", label: "Current Menu", icon: UtensilsCrossed },
+          { id: "orders", label: staffType === "chef" ? "Kitchen Orders" : "Incoming Orders", icon: Clock },
+          ...(staffType !== "chef" ? [{ id: "weekly", label: "Weekly Menu", icon: Store }] : []),
+        ]}
+        onLogout={onLogout}
+      />
+
+      <main className="min-w-0">
       <div className="bg-[#f97316] text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
           <div>
             <p className="text-orange-100 text-xs sm:text-sm">Vendor Dashboard</p>
             <h1 className="text-white">{user?.name || "Counter B Vendor"}</h1>
@@ -192,25 +235,74 @@ export function VendorDashboard({ user, onLogout }) {
               {staffType === "chef" ? "Prepare accepted orders and mark them ready." : "Monitor incoming orders and accept or reject them."}
             </p>
           </div>
-          <button
-            onClick={onLogout}
-            type="button"
-            className="w-10 h-10 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5 text-white" />
-          </button>
+          <div className="flex items-center gap-2">
+            <span className={`hidden sm:inline-flex rounded-full border px-3 py-1 text-xs font-medium ${serviceStatusMeta.className}`}>
+              {serviceStatusMeta.label}
+            </span>
+            <button
+              onClick={onLogout}
+              type="button"
+              className="w-10 h-10 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5 text-white" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <SummaryTile icon={Clock} label="Pending Orders" value={String(dashboard.summary.pendingOrders)} />
-          <SummaryTile icon={CheckCircle2} label="Ready Orders" value={String(dashboard.summary.readyOrders)} />
-          <SummaryTile icon={UtensilsCrossed} label="Weekly Items" value={String(dashboard.summary.weeklyMenuItems || 0)} />
-        </div>
+      <div className="px-4 sm:px-6 py-5 sm:py-7 space-y-5">
+        {activeSection === "dashboard" && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <SummaryTile icon={Clock} label="Pending Orders" value={String(dashboard.summary.pendingOrders)} />
+              <SummaryTile icon={CheckCircle2} label="Ready Orders" value={String(dashboard.summary.readyOrders)} />
+              <SummaryTile icon={UtensilsCrossed} label="Weekly Items" value={String(dashboard.summary.weeklyMenuItems || 0)} />
+            </div>
 
-        {staffType !== "chef" && (
+            <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-gray-900">Counter Status</h2>
+                  <p className="text-xs sm:text-sm text-gray-400">
+                    Students see this before ordering from your counter.
+                  </p>
+                </div>
+                <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${serviceStatusMeta.className}`}>
+                  {serviceStatusMeta.label}
+                </span>
+              </div>
+              <div className="px-4 sm:px-5 py-4">
+                {staffType === "chef" ? (
+                  <p className="text-sm text-gray-400">Cashier manages counter status.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {SERVICE_STATUS_OPTIONS.map((option) => {
+                      const active = serviceStatus === option.id;
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => updateServiceStatus(option.id)}
+                          className={`rounded-lg border px-3 py-3 text-sm font-medium transition-colors ${
+                            active
+                              ? option.className
+                              : "border-gray-100 bg-white text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {staffType !== "chef" && activeSection === "wallet" && (
           <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <Wallet className="w-5 h-5 text-[#f97316]" />
@@ -322,7 +414,8 @@ export function VendorDashboard({ user, onLogout }) {
           </section>
         )}
 
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        {activeSection === "menu" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Current Weekly Menu</h2>
             <p className="text-xs sm:text-sm text-gray-400">Adjust stock here after direct canteen sales or restocking.</p>
@@ -332,11 +425,14 @@ export function VendorDashboard({ user, onLogout }) {
             {!loading && weeklyMenuItems.length === 0 && <EmptyRow text="No weekly menu items selected yet." />}
             {!loading && weeklyMenuItems.map((item) => (
               <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="text-gray-900 truncate">{item.name}</p>
-                  <p className="text-xs sm:text-sm text-gray-400 truncate">
-                    {item.category || "Menu item"} - {item.stockQuantity} left
-                  </p>
+                <div className="min-w-0 flex items-center gap-3">
+                  <MenuThumb item={item} />
+                  <div className="min-w-0">
+                    <p className="text-gray-900 truncate">{item.name}</p>
+                    <p className="text-xs sm:text-sm text-gray-400 truncate">
+                      {item.category || "Menu item"} - {item.stockQuantity} left
+                    </p>
+                  </div>
                 </div>
                 <div className="shrink-0 flex items-center gap-2">
                   <span className="hidden sm:inline text-[#f97316]">${item.price.toFixed(2)}</span>
@@ -366,9 +462,11 @@ export function VendorDashboard({ user, onLogout }) {
               </div>
             ))}
           </div>
-        </section>
+          </section>
+        )}
 
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        {activeSection === "orders" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Incoming Orders</h2>
             <p className="text-xs sm:text-sm text-gray-400">Accept orders you can prepare in time, or reject during rush hours.</p>
@@ -423,9 +521,10 @@ export function VendorDashboard({ user, onLogout }) {
               );
             })}
           </div>
-        </section>
+          </section>
+        )}
 
-        {staffType !== "chef" && (
+        {staffType !== "chef" && activeSection === "weekly" && (
           <WeeklyMenuManager
             title="My Weekly Menu"
             subtitle="Choose up to 10 of your items to show to students this week."
@@ -433,12 +532,94 @@ export function VendorDashboard({ user, onLogout }) {
           />
         )}
       </div>
+      </main>
     </div>
+  );
+}
+
+function VendorSidebar({ title, subtitle, activeSection, onSectionChange, items, onLogout }) {
+  return (
+    <aside className="bg-white border-r border-gray-100 lg:min-h-screen lg:sticky lg:top-0">
+      <div className="px-5 py-5 border-b border-gray-100">
+        <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center">
+            <Store className="w-5 h-5 text-[#f97316]" />
+          </div>
+          <h2 className="text-gray-900">{title}</h2>
+        </div>
+      </div>
+      <nav className="px-3 py-4 flex gap-2 overflow-x-auto lg:block lg:space-y-1">
+        <p className="hidden lg:block px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-gray-300">Main Menu</p>
+        {items.map(({ id, label, icon: Icon }) => {
+          const active = activeSection === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSectionChange(id)}
+              className={`shrink-0 lg:w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                active ? "bg-orange-50 text-[#f97316]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
+              {active && <span className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="hidden lg:block px-3 py-4 border-t border-gray-100">
+        <p className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-gray-300">System</p>
+        <button type="button" className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+          <Settings className="w-4 h-4" />
+          Settings
+        </button>
+        <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
+      </div>
+    </aside>
   );
 }
 
 function EmptyRow({ text }) {
   return <div className="px-4 sm:px-5 py-4 text-sm text-gray-400">{text}</div>;
+}
+
+const SERVICE_STATUS_OPTIONS = [
+  { id: "open", label: "Open", className: "border-green-100 bg-green-50 text-green-600" },
+  { id: "busy", label: "Busy", className: "border-yellow-100 bg-yellow-50 text-yellow-700" },
+  { id: "very_busy", label: "Very Busy", className: "border-yellow-300 bg-yellow-200 text-yellow-900" },
+  { id: "closed", label: "Closed", className: "border-red-100 bg-red-50 text-red-600" },
+];
+
+function getServiceStatusMeta(status) {
+  return SERVICE_STATUS_OPTIONS.find((option) => option.id === status) || SERVICE_STATUS_OPTIONS[0];
+}
+
+function MenuThumb({ item }) {
+  const fallback = (item.emoji || item.name || "Menu")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center overflow-hidden shrink-0">
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-xs font-semibold text-[#f97316] px-1 text-center leading-tight">
+          {fallback || "ME"}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function SummaryTile({ icon: Icon, label, value }) {

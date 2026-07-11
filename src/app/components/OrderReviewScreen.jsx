@@ -62,14 +62,12 @@ export function OrderReviewScreen({ cart, onUpdateCart, onBack, onPay }) {
           <div className="bg-white rounded-2xl divide-y divide-gray-50 border border-gray-100 overflow-hidden">
             {cart.map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-50 flex items-center justify-center text-2xl sm:text-3xl shrink-0">
-                  {item.emoji}
-                </div>
+                <MenuThumb item={item} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
                   <p className="text-xs sm:text-sm text-[#f97316]">${(item.price * item.qty).toFixed(2)}</p>
-                  {Number.isInteger(item.stockQuantity) && (
-                    <p className="text-xs text-gray-400">{item.stockQuantity} left</p>
+                  {Number.isInteger(item.stockQuantity) && item.stockQuantity <= 5 && (
+                    <p className="text-xs text-[#f97316]">Low stock</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -129,6 +127,28 @@ export function OrderReviewScreen({ cart, onUpdateCart, onBack, onPay }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MenuThumb({ item }) {
+  const fallback = (item.emoji || item.name || "Menu")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center overflow-hidden shrink-0">
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-xs font-semibold text-[#f97316] px-1 text-center leading-tight">
+          {fallback || "ME"}
+        </span>
+      )}
     </div>
   );
 }

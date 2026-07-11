@@ -158,6 +158,7 @@ const upsertCounter = async (config) => {
     stallName: config.stallName,
     pickupLocation: config.pickupLocation,
     status: "active",
+    serviceStatus: "open",
   });
 
   await counter.update({
@@ -165,6 +166,7 @@ const upsertCounter = async (config) => {
     stallName: config.stallName,
     pickupLocation: config.pickupLocation,
     status: "active",
+    serviceStatus: "open",
   });
 
   await cashier.update({ vendorCounterId: counter.id });

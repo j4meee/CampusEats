@@ -55,6 +55,11 @@ const MenuItem = sequelize.define(
       allowNull: true,
       field: "image_label",
     },
+    imageUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "image_url",
+    },
     isAvailable: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LogOut, Plus, Store, Users, ClipboardList, BarChart3, Trash2, UserRound } from "lucide-react";
+import { BarChart3, ClipboardList, LayoutDashboard, LogOut, Plus, Settings, Store, Trash2, UserRound, Users, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
@@ -24,6 +24,7 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   const [vendorMessage, setVendorMessage] = useState("");
   const [savingVendor, setSavingVendor] = useState(false);
   const [deletingVendorId, setDeletingVendorId] = useState(null);
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   const loadDashboard = async () => {
     try {
@@ -135,48 +136,69 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafaf8]">
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs sm:text-sm text-gray-400">Admin Dashboard</p>
-            <h1 className="text-gray-900">Welcome, {user?.name || "Admin"}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onProfile}
-              type="button"
-              className="w-10 h-10 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center transition-colors"
-              title="Profile"
-            >
-              <UserRound className="w-5 h-5 text-[#f97316]" />
-            </button>
-            <button
-              onClick={onLogout}
-              type="button"
-              className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5 text-gray-600" />
-            </button>
+    <div className="min-h-screen bg-[#fafaf8] lg:grid lg:grid-cols-[260px_1fr]">
+      <StaffSidebar
+        title="CampusEats"
+        subtitle="Admin Dashboard"
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        items={[
+          { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { id: "menu", label: "Menu & Catalog", icon: UtensilsCrossed },
+          { id: "counters", label: "Stall Management", icon: Store },
+          { id: "orders", label: "Sales Reports", icon: BarChart3 },
+        ]}
+        onProfile={onProfile}
+        onLogout={onLogout}
+      />
+
+      <main className="min-w-0">
+        <div className="bg-white border-b border-gray-100">
+          <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm text-gray-400">Admin Dashboard</p>
+              <h1 className="text-gray-900">Welcome, {user?.name || "Admin"}</h1>
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={onProfile}
+                type="button"
+                className="w-10 h-10 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center transition-colors"
+                title="Profile"
+              >
+                <UserRound className="w-5 h-5 text-[#f97316]" />
+              </button>
+              <button
+                onClick={onLogout}
+                type="button"
+                className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="px-4 sm:px-6 py-5 sm:py-7 space-y-5">
+        {activeSection === "dashboard" && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <SummaryTile icon={Store} label="Vendors" value={String(dashboard.summary.vendors)} />
           <SummaryTile icon={ClipboardList} label="Orders Today" value={String(dashboard.summary.ordersToday)} />
           <SummaryTile icon={BarChart3} label="Sales" value={`$${dashboard.summary.sales.toFixed(2)}`} />
-        </div>
+          </div>
+        )}
 
-        <WeeklyMenuManager
-          title="Weekly Menu"
-          subtitle="Choose up to 10 active menu items for students. Admin can manage all vendors."
-          onMenuSaved={loadDashboard}
-        />
+        {activeSection === "menu" && (
+          <WeeklyMenuManager
+            title="Weekly Menu"
+            subtitle="Choose up to 10 active menu items for students. Admin can manage all vendors."
+            onMenuSaved={loadDashboard}
+          />
+        )}
 
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        {activeSection === "counters" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-gray-900">Vendor Counters & Staff</h2>
@@ -330,9 +352,11 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
               </div>
             ))}
           </div>
-        </section>
+          </section>
+        )}
 
-        <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        {activeSection === "orders" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
             <Users className="w-5 h-5 text-[#f97316]" />
             <h2 className="text-gray-900">All Orders</h2>
@@ -349,9 +373,59 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
               </div>
             ))}
           </div>
-        </section>
+          </section>
+        )}
       </div>
+      </main>
     </div>
+  );
+}
+
+function StaffSidebar({ title, subtitle, activeSection, onSectionChange, items, onProfile, onLogout }) {
+  return (
+    <aside className="bg-white border-r border-gray-100 lg:min-h-screen lg:sticky lg:top-0">
+      <div className="px-5 py-5 border-b border-gray-100">
+        <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center">
+            <Store className="w-5 h-5 text-[#f97316]" />
+          </div>
+          <h2 className="text-gray-900">{title}</h2>
+        </div>
+      </div>
+      <nav className="px-3 py-4 flex gap-2 overflow-x-auto lg:block lg:space-y-1">
+        <p className="hidden lg:block px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-gray-300">Main Menu</p>
+        {items.map(({ id, label, icon: Icon }) => {
+          const active = activeSection === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSectionChange(id)}
+              className={`shrink-0 lg:w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                active ? "bg-orange-50 text-[#f97316]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
+              {active && <span className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="hidden lg:block px-3 py-4 border-t border-gray-100 mt-auto">
+        <p className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-gray-300">System</p>
+        <button type="button" onClick={onProfile} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+          <Settings className="w-4 h-4" />
+          Settings
+        </button>
+        <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
+      </div>
+    </aside>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Lock, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Lock, Save, Wallet } from "lucide-react";
 import { fetchJson, updateStoredUser } from "../lib/api";
 
 export function ProfileScreen({ user, onBack, onUserUpdate }) {
@@ -116,6 +116,21 @@ export function ProfileScreen({ user, onBack, onUserUpdate }) {
           <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
             {error}
           </p>
+        )}
+
+        {isStudent && (
+          <section className="bg-white border border-gray-100 rounded-xl px-4 sm:px-5 py-4 sm:py-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+                <Wallet className="w-5 h-5 text-[#f97316]" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-gray-900">E-Wallet Balance</h2>
+                <p className="text-xs sm:text-sm text-gray-400">Top up with a cashier at any counter.</p>
+              </div>
+            </div>
+            <p className="text-2xl text-[#f97316] shrink-0">${Number(user?.walletBalance || 0).toFixed(2)}</p>
+          </section>
         )}
 
         <section className="bg-white border border-gray-100 rounded-xl px-4 sm:px-5 py-4 sm:py-5 space-y-4">

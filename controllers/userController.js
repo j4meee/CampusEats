@@ -340,6 +340,7 @@ export const createVendorUser = async (req, res) => {
           stallName: stallName.trim(),
           pickupLocation: pickupLocation.trim(),
           status,
+          serviceStatus: "open",
         },
         { transaction },
       );

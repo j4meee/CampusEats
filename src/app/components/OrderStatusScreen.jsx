@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChefHat, Bell, MapPin, XCircle } from "lucide-react";
+import { CheckCircle2, ChefHat, Bell, MapPin, XCircle, Clock } from "lucide-react";
 import { fetchJson } from "../lib/api";
 
 const steps = [
@@ -26,12 +26,25 @@ const statusText = {
 export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
   const [currentOrder, setCurrentOrder] = useState(order);
   const [pickupError, setPickupError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const isMultiOrder = Array.isArray(currentOrder);
   const currentOrders = Array.isArray(currentOrder) ? currentOrder : currentOrder ? [currentOrder] : [];
 
   useEffect(() => {
     setCurrentOrder(order);
   }, [order]);
+
+  useEffect(() => {
+    const hasPickupDeadline = currentOrders.some((item) => item.status === "ready" && item.pickupDeadlineAt);
+
+    if (!hasPickupDeadline) return undefined;
+
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [currentOrder]);
 
   useEffect(() => {
     const ordersToPoll = Array.isArray(currentOrder) ? currentOrder : currentOrder ? [currentOrder] : [];
@@ -76,6 +89,18 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
   const estimatedTime = activeOrder.estimatedReadyAt
     ? new Date(activeOrder.estimatedReadyAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "soon";
+  const readyDeadlines = currentOrders
+    .filter((item) => item.status === "ready" && item.pickupDeadlineAt)
+    .map((item) => new Date(item.pickupDeadlineAt).getTime())
+    .filter((time) => Number.isFinite(time));
+  const pickupDeadline = readyDeadlines.length > 0 ? Math.min(...readyDeadlines) : null;
+  const pickupMsLeft = pickupDeadline ? pickupDeadline - now : null;
+  const pickupMinutesLeft = pickupMsLeft !== null ? Math.max(0, Math.ceil(pickupMsLeft / 60000)) : null;
+  const pickupReminderActive = isReady && pickupMsLeft !== null && pickupMsLeft > 0 && pickupMsLeft <= 3 * 60 * 1000;
+  const pickupOverdue = isReady && pickupMsLeft !== null && pickupMsLeft <= 0;
+  const pickupDeadlineText = pickupDeadline
+    ? new Date(pickupDeadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   const confirmPickup = async () => {
     setPickupError("");
@@ -122,7 +147,9 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
             {isCancelled
               ? "The vendor counters cannot prepare these orders in time."
               : isReady
-                ? "Please pick up at each assigned counter."
+                ? pickupDeadlineText
+                  ? `Please pick up by ${pickupDeadlineText}.`
+                  : "Please pick up at each assigned counter."
                 : `Estimated ready at ${estimatedTime}`}
           </p>
           <div className="mt-3 sm:mt-4 inline-block bg-white/20 rounded-xl px-4 sm:px-5 py-1.5 sm:py-2">
@@ -176,6 +203,34 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
             })}
           </div>
 
+          {isReady && pickupDeadlineText && (
+            <div className={`border rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-start gap-2.5 sm:gap-3 ${
+              pickupOverdue
+                ? "bg-red-50 border-red-100"
+                : pickupReminderActive
+                  ? "bg-orange-50 border-orange-100"
+                  : "bg-green-50 border-green-100"
+            }`}>
+              <Clock className={`w-4 h-4 sm:w-5 sm:h-5 mt-0.5 shrink-0 ${
+                pickupOverdue ? "text-red-500" : pickupReminderActive ? "text-[#f97316]" : "text-green-600"
+              }`} />
+              <div>
+                <p className="text-sm sm:text-base text-gray-800">
+                  {pickupOverdue
+                    ? "Pickup window ended"
+                    : pickupReminderActive
+                      ? "Pickup reminder"
+                      : "Pickup window"}
+                </p>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                  {pickupOverdue
+                    ? "The 10-minute pickup window has ended. Please contact the counter."
+                    : `${pickupMinutesLeft} min left to pick up your food before ${pickupDeadlineText}.`}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-gray-100 px-4 sm:px-5 py-4 sm:py-5">
             <p className="text-xs sm:text-sm text-gray-400 mb-3">Your Counter Orders</p>
             <div className="space-y-4">
@@ -199,7 +254,7 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
                   <div className="space-y-2 sm:space-y-2.5">
                     {counterOrder.items.map((item) => (
                       <div key={item.id} className="flex items-center gap-2.5 sm:gap-3">
-                        <span className="text-xl sm:text-2xl">{item.imageLabel || "IT"}</span>
+                        <MenuThumb item={item} />
                         <span className="text-sm sm:text-base text-gray-700 flex-1">{item.name}</span>
                         <span className="text-xs sm:text-sm text-gray-400">x{item.quantity}</span>
                       </div>
@@ -252,9 +307,10 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
           <div className="max-w-4xl mx-auto">
             <button
               onClick={confirmPickup}
-              className="w-full bg-green-500 hover:bg-green-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base transition-colors"
+              disabled={pickupOverdue}
+              className="w-full bg-green-500 hover:bg-green-600 text-white rounded-2xl py-3.5 sm:py-4 text-sm sm:text-base transition-colors disabled:opacity-50 disabled:hover:bg-green-500"
             >
-              I'm at the counter - Confirm Pickup
+              {pickupOverdue ? "Pickup window ended" : "I'm at the counter - Confirm Pickup"}
             </button>
           </div>
         </div>
@@ -271,6 +327,28 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function MenuThumb({ item }) {
+  const fallback = (item.imageLabel || item.name || "Item")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center overflow-hidden shrink-0">
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-xs font-semibold text-[#f97316] px-1 text-center leading-tight">
+          {fallback || "IT"}
+        </span>
       )}
     </div>
   );
