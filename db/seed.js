@@ -124,6 +124,16 @@ const imageUrlByName = {
   "Garlic Bread": "/images/menu/garlic-bread.png",
   "Mini Dumplings": "/images/menu/mini-dumplings.png",
   "Iced Coffee": "/images/menu/iced-coffee.png",
+  "Iced Lemon Tea": "/images/menu/iced-lemon-tea.png",
+  "Milk Tea": "/images/menu/milk-tea.png",
+  "Passion Soda": "/images/menu/passion-soda.png",
+  "Mineral Water": "/images/menu/mineral-water.png",
+  "Matcha Latte": "/images/menu/matcha-latte.png",
+  "Chocolate Frappe": "/images/menu/chocolate-frappe.png",
+  "Lychee Iced Tea": "/images/menu/lychee-iced-tea.png",
+  "Mango Smoothie": "/images/menu/mango-smoothie.png",
+  "Lime Soda": "/images/menu/lime-soda.png",
+  "Thai Tea": "/images/menu/thai-tea.png",
   "Mango Sticky Rice": "/images/menu/mango-sticky-rice.png",
 };
 

@@ -12,7 +12,9 @@
     "db:seed": "node db/seed.js",
     "db:backup": "node db/backup.js",
     "db:restore": "node db/restore.js",
-    "db:grant-manager": "node db/grantManagerPrivileges.js"
+    "db:backup-recovery": "python db/database_backup_recovery.py",
+    "db:grant-manager": "node db/grantManagerPrivileges.js",
+    "db:generate-1m": "python db/generate_6m_records.py"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

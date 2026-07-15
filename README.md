@@ -96,6 +96,20 @@ Recover the database from a backup using the same `mysql` restore flow. If the d
 npm run db:restore -- --file=db/backups/campuseats_db_backup.sql
 ```
 
+You can also use the Python backup/recovery menu that follows the class notebook style:
+
+```bash
+python db/database_backup_recovery.py
+```
+
+Generate 1 million big-data sample records for database testing:
+
+```bash
+npm run db:generate-1m
+```
+
+This creates and fills a separate table named `campus_eats_activity_records`, so the normal app tables are not damaged. The script follows the class example style, but uses `100` rounds x `10,000` records by default to avoid filling small database storage.
+
 Core tables:
 
 ```txt
