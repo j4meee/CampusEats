@@ -1,16 +1,39 @@
 import { Star } from "lucide-react";
 import { useState } from "react";
+import { fetchJson } from "../lib/api";
 
 export function PickupConfirmationScreen({ order, onDone }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
+  const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const orders = Array.isArray(order) ? order : order ? [order] : [];
   const orderNumbers = orders.length > 0 ? orders.map((item) => item.orderNumber).join(", ") : "confirmed";
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    setTimeout(onDone, 1800);
+  const handleSubmit = async () => {
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await Promise.all(
+        orders.map((item) =>
+          fetchJson(`/api/orders/${item.id}/feedback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating, comment }),
+          }),
+        ),
+      );
+
+      setSubmitted(true);
+      setTimeout(onDone, 1800);
+    } catch (feedbackError) {
+      setError(feedbackError.message || "Failed to submit feedback.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -48,12 +71,23 @@ export function PickupConfirmationScreen({ order, onDone }) {
                 </button>
               ))}
             </div>
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="Optional comment"
+              className="w-full min-h-20 resize-none rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 transition-all mb-3"
+            />
+            {error && (
+              <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
+                {error}
+              </p>
+            )}
             <button
               onClick={handleSubmit}
-              disabled={rating === 0}
+              disabled={rating === 0 || submitting}
               className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-xl py-2.5 sm:py-3 text-sm sm:text-base disabled:opacity-40 disabled:hover:bg-[#f97316] transition-colors"
             >
-              Submit Feedback
+              {submitting ? "Saving..." : "Submit Feedback"}
             </button>
             <button
               onClick={onDone}

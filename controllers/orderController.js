@@ -1,6 +1,6 @@
 import sequelize from "../db/database.js";
 import { getRolePrivileges } from "../config/accessControl.js";
-import { MenuItem, Order, OrderItem, Payment, User, Vendor, WalletTransaction } from "../model/index.js";
+import { Feedback, MenuItem, Order, OrderItem, Payment, User, Vendor, WalletTransaction } from "../model/index.js";
 import { findVendorForUser } from "./vendorAccess.js";
 
 const formatOrder = (order) => ({
@@ -29,6 +29,12 @@ const formatOrder = (order) => ({
         status: order.payment.status,
         amount: Number(order.payment.amount),
         paidAt: order.payment.paidAt,
+      }
+    : null,
+  feedback: order.feedback
+    ? {
+        rating: order.feedback.rating,
+        comment: order.feedback.comment,
       }
     : null,
   items:
@@ -67,6 +73,7 @@ const findOrderById = (id) =>
     include: [
       { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
       { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
+      { model: Feedback, as: "feedback", attributes: ["id", "rating", "comment"] },
       {
         model: OrderItem,
         as: "items",
@@ -81,6 +88,7 @@ const findStudentOrders = (studentId) =>
     include: [
       { model: Vendor, as: "vendor", attributes: ["id", "stallName", "pickupLocation"] },
       { model: Payment, as: "payment", attributes: ["id", "method", "status", "amount", "paidAt"] },
+      { model: Feedback, as: "feedback", attributes: ["id", "rating", "comment"] },
       {
         model: OrderItem,
         as: "items",
@@ -438,6 +446,56 @@ export const getOrderById = async (req, res) => {
     res.status(200).json({ order: formatOrder(order) });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch order", error: error.message });
+  }
+};
+
+export const submitOrderFeedback = async (req, res) => {
+  try {
+    const rating = Number(req.body.rating);
+    const comment = req.body.comment?.trim() || null;
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
+    }
+
+    const order = await Order.findByPk(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (req.user.role !== "student" || order.studentId !== req.user.id) {
+      return res.status(403).json({ message: "You can only submit feedback for your own order" });
+    }
+
+    if (order.status !== "picked_up") {
+      return res.status(400).json({ message: "Feedback can only be submitted after pickup" });
+    }
+
+    const [feedback, created] = await Feedback.findOrCreate({
+      where: { orderId: order.id },
+      defaults: {
+        orderId: order.id,
+        rating,
+        comment,
+      },
+    });
+
+    if (!created) {
+      await feedback.update({ rating, comment });
+    }
+
+    res.status(200).json({
+      message: "Feedback saved.",
+      feedback: {
+        id: feedback.id,
+        orderId: feedback.orderId,
+        rating: feedback.rating,
+        comment: feedback.comment,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to submit feedback", error: error.message });
   }
 };
 

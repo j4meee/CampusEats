@@ -9,7 +9,10 @@
     "dev:all": "node scripts/dev-all.js",
     "server": "node server.js",
     "server:dev": "nodemon server.js",
-    "db:seed": "node db/seed.js"
+    "db:seed": "node db/seed.js",
+    "db:backup": "node db/backup.js",
+    "db:restore": "node db/restore.js",
+    "db:grant-manager": "node db/grantManagerPrivileges.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

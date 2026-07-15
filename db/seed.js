@@ -97,6 +97,36 @@ const menuItems = [
 
 const menuItemNames = new Set(menuItems.map((item) => item.name));
 
+const imageUrlByName = {
+  "Chicken Rice Bowl": "/images/menu/chicken-rice-bowl.png",
+  "Beef Lok Lak": "/images/menu/beef-lok-lak.png",
+  "Pork Basil Rice": "/images/menu/pork-basil-rice.png",
+  "Vegetable Fried Rice": "/images/menu/vegetable-fried-rice.png",
+  "Fish Amok Rice": "/images/menu/fish-amok-rice.png",
+  "Teriyaki Chicken Bento": "/images/menu/teriyaki-chicken-bento.png",
+  "Khmer Noodle Soup": "/images/menu/khmer-noodle-soup.png",
+  "Chicken Curry Rice": "/images/menu/chicken-curry-rice.png",
+  "Tuna Mayo Onigiri Set": "/images/menu/tuna-mayo-onigiri-set.png",
+  "Grilled Pork Rice": "/images/menu/grilled-pork-rice.png",
+  "Spicy Seafood Noodles": "/images/menu/spicy-seafood-noodles.png",
+  "Tofu Rice Bowl": "/images/menu/tofu-rice-bowl.png",
+  "Egg Fried Noodles": "/images/menu/egg-fried-noodles.png",
+  "Chicken Katsu Curry": "/images/menu/chicken-katsu-curry.png",
+  "Garlic Shrimp Rice": "/images/menu/garlic-shrimp-rice.png",
+  "Spring Rolls": "/images/menu/spring-rolls.png",
+  "Fried Wontons": "/images/menu/fried-wontons.png",
+  "French Fries": "/images/menu/french-fries.png",
+  "Chicken Nuggets": "/images/menu/chicken-nuggets.png",
+  "Grilled Corn": "/images/menu/grilled-corn.png",
+  "Cheese Toast": "/images/menu/cheese-toast.png",
+  "Takoyaki Bites": "/images/menu/takoyaki-bites.png",
+  "Fried Fish Balls": "/images/menu/fried-fish-balls.png",
+  "Garlic Bread": "/images/menu/garlic-bread.png",
+  "Mini Dumplings": "/images/menu/mini-dumplings.png",
+  "Iced Coffee": "/images/menu/iced-coffee.png",
+  "Mango Sticky Rice": "/images/menu/mango-sticky-rice.png",
+};
+
 const getRequiredEnv = (name) => {
   const value = process.env[name];
 
@@ -247,6 +277,7 @@ const seed = async () => {
       stockQuantity: item.stockQuantity,
       tag: item.tag,
       imageLabel: item.imageLabel,
+      imageUrl: imageUrlByName[item.name] || null,
       isAvailable: false,
     };
 

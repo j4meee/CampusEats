@@ -3,3 +3,4 @@ dist/
 .env
 .vite/
 npm-debug.log*
+db/backups/

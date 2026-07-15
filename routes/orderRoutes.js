@@ -6,6 +6,7 @@ import {
   getStudentNotifications,
   getStudentOrderHistory,
   getStudentPaymentHistory,
+  submitOrderFeedback,
   updateOrderStatus,
 } from "../controllers/orderController.js";
 import { requireAuth, requirePrivilege } from "../middlewares/auth.js";
@@ -17,6 +18,7 @@ router.get("/history", requireAuth, requirePrivilege(PRIVILEGES.VIEW_OWN_ORDERS)
 router.get("/payments", requireAuth, requirePrivilege(PRIVILEGES.VIEW_OWN_ORDERS), getStudentPaymentHistory);
 router.get("/notifications", requireAuth, requirePrivilege(PRIVILEGES.VIEW_OWN_ORDERS), getStudentNotifications);
 router.get("/:id", requireAuth, getOrderById);
+router.post("/:id/feedback", requireAuth, requirePrivilege(PRIVILEGES.VIEW_OWN_ORDERS), submitOrderFeedback);
 router.patch("/:id/status", requireAuth, updateOrderStatus);
 
 export default router;

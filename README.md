@@ -54,6 +54,48 @@ Then create/update the tables and insert seed data:
 npm run db:seed
 ```
 
+Grant database management privileges to a dedicated MySQL user:
+
+```bash
+npm run db:grant-manager
+```
+
+The grant script uses these `.env` values:
+
+```txt
+DB_ADMIN_USER=root
+DB_ADMIN_PASSWORD=
+DB_MANAGER_USER=campuseats_manager
+DB_MANAGER_PASSWORD=change-this-manager-password
+DB_MANAGER_HOST=localhost
+```
+
+It runs the equivalent of:
+
+```sql
+CREATE USER IF NOT EXISTS 'campuseats_manager'@'localhost' IDENTIFIED BY 'change-this-manager-password';
+GRANT ALL PRIVILEGES ON campuseats_db.* TO 'campuseats_manager'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Create a database backup using the same `mysqldump` flow shown in the backup/recovery notebook:
+
+```bash
+npm run db:backup
+```
+
+By default, backups are saved in `db/backups/` using the database name and timestamp. You can choose the file path:
+
+```bash
+npm run db:backup -- --file=db/backups/campuseats_db_backup.sql
+```
+
+Recover the database from a backup using the same `mysql` restore flow. If the database was dropped, the restore script creates it again before importing the SQL file:
+
+```bash
+npm run db:restore -- --file=db/backups/campuseats_db_backup.sql
+```
+
 Core tables:
 
 ```txt
