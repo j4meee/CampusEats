@@ -155,24 +155,24 @@ except mysql.connector.Error as err:
 
 create_table_query = f"""
 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  order_number VARCHAR(40) NOT NULL UNIQUE,
-  student_name VARCHAR(255) NOT NULL,
-  student_email VARCHAR(255) NOT NULL,
-  menu_item_name VARCHAR(255) NOT NULL,
-  category_name VARCHAR(255) NOT NULL,
-  vendor_name VARCHAR(255) NOT NULL,
-  quantity INT NOT NULL,
-  unit_price DECIMAL(10, 2) NOT NULL,
-  total_price DECIMAL(10, 2) NOT NULL,
-  order_status VARCHAR(30) NOT NULL,
-  payment_method VARCHAR(30) NOT NULL,
-  ordered_at DATETIME NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_big_records_ordered_at (ordered_at),
-  INDEX idx_big_records_vendor_status (vendor_name, order_status),
-  INDEX idx_big_records_category (category_name),
-  INDEX idx_big_records_payment_method (payment_method)
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(40) NOT NULL UNIQUE,
+    student_name VARCHAR(255) NOT NULL,
+    student_email VARCHAR(255) NOT NULL,
+    menu_item_name VARCHAR(255) NOT NULL,
+    category_name VARCHAR(255) NOT NULL,
+    vendor_name VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    order_status VARCHAR(30) NOT NULL,
+    payment_method VARCHAR(30) NOT NULL,
+    ordered_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_big_records_ordered_at (ordered_at),
+    INDEX idx_big_records_vendor_status (vendor_name, order_status),
+    INDEX idx_big_records_category (category_name),
+    INDEX idx_big_records_payment_method (payment_method)
 )
 """
 
@@ -181,18 +181,18 @@ connection.commit()
 
 insert_query = f"""
 INSERT IGNORE INTO {TABLE_NAME} (
-  order_number,
-  student_name,
-  student_email,
-  menu_item_name,
-  category_name,
-  vendor_name,
-  quantity,
-  unit_price,
-  total_price,
-  order_status,
-  payment_method,
-  ordered_at
+    order_number,
+    student_name,
+    student_email,
+    menu_item_name,
+    category_name,
+    vendor_name,
+    quantity,
+    unit_price,
+    total_price,
+    order_status,
+    payment_method,
+    ordered_at
 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 

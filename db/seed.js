@@ -134,7 +134,20 @@ const imageUrlByName = {
   "Mango Smoothie": "/images/menu/mango-smoothie.png",
   "Lime Soda": "/images/menu/lime-soda.png",
   "Thai Tea": "/images/menu/thai-tea.png",
+  "Watermelon Juice": "/images/menu/watermelon-juice.png",
   "Mango Sticky Rice": "/images/menu/mango-sticky-rice.png",
+  "Crispy Tofu Bites": "/images/menu/crispy-tofu-bites.png",
+  "Potato Croquettes": "/images/menu/potato-croquettes.png",
+  "Chocolate Brownie": "/images/menu/chocolate-brownie.png",
+  "Coconut Jelly": "/images/menu/coconut-jelly.png",
+  "Banana Fritters": "/images/menu/banana-fritters.png",
+  "Pandan Cake": "/images/menu/pandan-cake.png",
+  "Fruit Cup": "/images/menu/fruit-cup.png",
+  "Caramel Pudding": "/images/menu/caramel-pudding.png",
+  "Ice Cream Cup": "/images/menu/ice-cream-cup.png",
+  "Red Bean Bun": "/images/menu/red-bean-bun.png",
+  "Cheesecake Slice": "/images/menu/cheesecake-slice.png",
+  "Sweet Corn Pudding": "/images/menu/sweet-corn-pudding.png",
 };
 
 const getRequiredEnv = (name) => {

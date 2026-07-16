@@ -66,18 +66,20 @@ const args = [
   "--single-transaction",
   "--routines",
   "--triggers",
+  "--set-gtid-purged=OFF",
   dbName,
   `--result-file=${outputFile}`,
 ];
 
-console.log([command, ...args]);
+const redactPassword = (arg) =>
+  arg.startsWith("--password=") ? "--password=********" : arg;
+
+console.log([command, ...args.map(redactPassword)]);
 
 const result = spawnSync(command, args, {
   encoding: "utf8",
   stdio: ["ignore", "pipe", "pipe"],
 });
-
-console.log(result);
 
 if (result.error) {
   console.error(`Backup failed: ${result.error.message}`);

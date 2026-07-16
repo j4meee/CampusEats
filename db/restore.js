@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 
@@ -62,6 +62,7 @@ const connectionArgs = buildMysqlArgs({
   user: getRequiredEnv("DB_USER"),
   password: process.env.DB_PASSWORD,
 });
+const shouldCreateDatabase = getArgValue("create-database") === "true";
 
 const createDatabaseCommand = [
   "CREATE DATABASE IF NOT EXISTS",
@@ -69,43 +70,61 @@ const createDatabaseCommand = [
   "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
 ].join(" ");
 
-const createResult = spawnSync("mysql", [...connectionArgs, `--execute=${createDatabaseCommand}`], {
-  encoding: "utf8",
-  stdio: ["ignore", "pipe", "pipe"],
-});
+if (shouldCreateDatabase) {
+  const createResult = spawnSync("mysql", [...connectionArgs, `--execute=${createDatabaseCommand}`], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
-if (createResult.error) {
-  console.error(`Restore failed: ${createResult.error.message}`);
-  process.exit(1);
-}
+  if (createResult.error) {
+    console.error(`Restore failed: ${createResult.error.message}`);
+    process.exit(1);
+  }
 
-if (createResult.status !== 0) {
-  console.error(`Error creating database: ${createResult.stderr}`);
-  process.exit(createResult.status || 1);
+  if (createResult.status !== 0) {
+    console.error(`Error creating database: ${createResult.stderr}`);
+    process.exit(createResult.status || 1);
+  }
 }
 
 const command = "mysql";
 const args = [...connectionArgs, dbName];
 
-console.log([command, ...args]);
+const redactPassword = (arg) =>
+  arg.startsWith("--password=") ? "--password=********" : arg;
 
-const result = spawnSync(command, args, {
-  input: readFileSync(inputFile),
-  encoding: "utf8",
-  stdio: ["pipe", "pipe", "pipe"],
-  maxBuffer: 1024 * 1024 * 100,
-});
+console.log([command, ...args.map(redactPassword)]);
 
-console.log(result);
+const restoreDatabase = () =>
+  new Promise((resolve, reject) => {
+    const mysql = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const input = createReadStream(inputFile);
+    let stderr = "";
 
-if (result.error) {
-  console.error(`Restore failed: ${result.error.message}`);
-  process.exit(1);
-}
+    mysql.stderr.setEncoding("utf8");
+    mysql.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
 
-if (result.status === 0) {
+    mysql.on("error", reject);
+    mysql.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderr || `mysql exited with status ${code}`));
+      }
+    });
+
+    input.on("error", reject);
+    input.pipe(mysql.stdin);
+  });
+
+try {
+  await restoreDatabase();
   console.log(`Restore successful from ${inputFile}.`);
-} else {
-  console.error(`Error: ${result.stderr}`);
-  process.exit(result.status || 1);
+} catch (error) {
+  console.error(`Restore failed: ${error.message}`);
+  process.exit(1);
 }

@@ -31,6 +31,7 @@ const buildStarterMenuItems = (stallName) => [
     stockQuantity: 20,
     tag: "New",
     imageLabel: "Rice",
+    imageUrl: "/images/menu/chicken-rice-bowl.png",
   },
   {
     category: "Snacks",
@@ -41,6 +42,7 @@ const buildStarterMenuItems = (stallName) => [
     stockQuantity: 20,
     tag: "Crispy",
     imageLabel: "Roll",
+    imageUrl: "/images/menu/spring-rolls.png",
   },
   {
     category: "Drinks",
@@ -51,6 +53,7 @@ const buildStarterMenuItems = (stallName) => [
     stockQuantity: 20,
     tag: "Cold",
     imageLabel: "Tea",
+    imageUrl: "/images/menu/iced-lemon-tea.png",
   },
   {
     category: "Desserts",
@@ -61,6 +64,7 @@ const buildStarterMenuItems = (stallName) => [
     stockQuantity: 20,
     tag: "Sweet",
     imageLabel: "Cake",
+    imageUrl: "/images/menu/chocolate-brownie.png",
   },
 ];
 
@@ -83,6 +87,7 @@ const createStarterMenuForVendor = async (vendor, transaction) => {
       stockQuantity: item.stockQuantity,
       tag: item.tag,
       imageLabel: item.imageLabel,
+      imageUrl: item.imageUrl,
       isAvailable: false,
     })),
     { transaction },
