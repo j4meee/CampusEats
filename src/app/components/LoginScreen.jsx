@@ -444,11 +444,6 @@ export function LoginScreen({ onLogin, onError }) {
                 )}
               </button>
 
-              <p className="text-center text-xs sm:text-sm text-gray-400">
-                {forgotMode
-                  ? "Use your account email to set a new password."
-                  : "Students, admins, and vendors sign in here."}
-              </p>
             </>
           )}
 
@@ -475,15 +470,8 @@ export function LoginScreen({ onLogin, onError }) {
                 )}
               </button>
 
-              <p className="text-center text-xs sm:text-sm text-gray-400">
-                Student accounts are created as active CampusEats users.
-              </p>
             </>
           )}
-
-          <p className="text-center text-xs sm:text-sm text-gray-400 pt-4">
-            Having trouble? Contact your school's IT helpdesk.
-          </p>
         </div>
       </div>
     </div>

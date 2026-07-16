@@ -105,7 +105,6 @@ export function ProfileScreen({ user, onBack, onUserUpdate }) {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <p className="text-xs sm:text-sm text-gray-400">Account Management</p>
             <h1 className="text-gray-900">My Profile</h1>
           </div>
         </div>
@@ -126,7 +125,6 @@ export function ProfileScreen({ user, onBack, onUserUpdate }) {
               </div>
               <div className="min-w-0">
                 <h2 className="text-gray-900">E-Wallet Balance</h2>
-                <p className="text-xs sm:text-sm text-gray-400">Top up with a cashier at any counter.</p>
               </div>
             </div>
             <p className="text-2xl text-[#f97316] shrink-0">${Number(user?.walletBalance || 0).toFixed(2)}</p>
@@ -136,7 +134,6 @@ export function ProfileScreen({ user, onBack, onUserUpdate }) {
         <section className="bg-white border border-gray-100 rounded-xl px-4 sm:px-5 py-4 sm:py-5 space-y-4">
           <div>
             <h2 className="text-gray-900">Profile Information</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Keep your account details up to date.</p>
           </div>
           <ProfileInput label="Full Name" value={profile.name} onChange={(value) => updateProfileField("name", value)} />
           <ProfileInput label="Email" type="email" value={profile.email} onChange={(value) => updateProfileField("email", value)} />
@@ -158,7 +155,6 @@ export function ProfileScreen({ user, onBack, onUserUpdate }) {
         <section className="bg-white border border-gray-100 rounded-xl px-4 sm:px-5 py-4 sm:py-5 space-y-4">
           <div>
             <h2 className="text-gray-900">Change Password</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Use your current password before setting a new one.</p>
           </div>
           <ProfileInput label="Current Password" type="password" value={passwords.currentPassword} onChange={(value) => updatePasswordField("currentPassword", value)} />
           <ProfileInput label="New Password" type="password" value={passwords.newPassword} onChange={(value) => updatePasswordField("newPassword", value)} />

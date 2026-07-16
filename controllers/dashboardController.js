@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { Category, MenuItem, Order, OrderItem, User, Vendor } from "../model/index.js";
 import { findVendorForUser } from "./vendorAccess.js";
 
@@ -16,7 +17,7 @@ const formatOrder = (order) => ({
 
 export const getAdminDashboard = async (_req, res) => {
   try {
-    const [vendors, orders] = await Promise.all([
+    const [vendors, orders, lowStockItems] = await Promise.all([
       Vendor.findAll({
         where: { status: ["active", "pending"] },
         include: [
@@ -32,14 +33,48 @@ export const getAdminDashboard = async (_req, res) => {
           {
             model: OrderItem,
             as: "items",
-            include: [{ model: MenuItem, as: "menuItem", attributes: ["name"] }],
+            attributes: ["quantity", "lineTotal"],
+            include: [{ model: MenuItem, as: "menuItem", attributes: ["id", "name"] }],
           },
         ],
         order: [["createdAt", "DESC"]],
       }),
+      MenuItem.findAll({
+        where: { stockQuantity: { [Op.lte]: 5 } },
+        include: [
+          { model: Category, as: "category", attributes: ["name"] },
+          { model: Vendor, as: "vendor", attributes: ["stallName"] },
+        ],
+        order: [
+          ["stockQuantity", "ASC"],
+          ["name", "ASC"],
+        ],
+        limit: 8,
+      }),
     ]);
 
     const sales = orders.reduce((sum, order) => sum + Number(order.total), 0);
+    const topSellingItems = [...orders.reduce((itemsById, order) => {
+      for (const item of order.items || []) {
+        const menuItem = item.menuItem;
+        if (!menuItem) continue;
+
+        const current = itemsById.get(menuItem.id) || {
+          id: menuItem.id,
+          name: menuItem.name,
+          quantitySold: 0,
+          revenue: 0,
+        };
+
+        current.quantitySold += Number(item.quantity || 0);
+        current.revenue += Number(item.lineTotal || 0);
+        itemsById.set(menuItem.id, current);
+      }
+
+      return itemsById;
+    }, new Map()).values()]
+      .sort((a, b) => b.quantitySold - a.quantitySold || b.revenue - a.revenue)
+      .slice(0, 5);
 
     res.status(200).json({
       summary: {
@@ -56,6 +91,15 @@ export const getAdminDashboard = async (_req, res) => {
         status: vendor.status,
         serviceStatus: vendor.serviceStatus,
         staff: vendor.staff || [],
+      })),
+      topSellingItems,
+      lowStockItems: lowStockItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category?.name,
+        vendor: item.vendor?.stallName,
+        stockQuantity: item.stockQuantity,
+        isAvailable: item.isAvailable,
       })),
       orders: orders.map(formatOrder),
     });

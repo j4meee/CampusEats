@@ -3,9 +3,9 @@ import { CheckCircle2, ChefHat, Bell, MapPin, XCircle, Clock } from "lucide-reac
 import { fetchJson } from "../lib/api";
 
 const steps = [
-  { id: 1, label: "Order Confirmed", sub: "The vendor received your order", icon: CheckCircle2 },
-  { id: 2, label: "Preparing", sub: "The kitchen is cooking your meal", icon: ChefHat },
-  { id: 3, label: "Ready for Pickup", sub: "Head to the pickup counter", icon: Bell },
+  { id: 1, label: "Order Confirmed", icon: CheckCircle2 },
+  { id: 2, label: "Preparing", icon: ChefHat },
+  { id: 3, label: "Ready for Pickup", icon: Bell },
 ];
 
 const statusStep = {
@@ -148,8 +148,8 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
               ? "The vendor counters cannot prepare these orders in time."
               : isReady
                 ? pickupDeadlineText
-                  ? `Please pick up by ${pickupDeadlineText}.`
-                  : "Please pick up at each assigned counter."
+                  ? `Pickup by ${pickupDeadlineText}`
+                  : "Ready at assigned counter"
                 : `Estimated ready at ${estimatedTime}`}
           </p>
           <div className="mt-3 sm:mt-4 inline-block bg-white/20 rounded-xl px-4 sm:px-5 py-1.5 sm:py-2">
@@ -194,9 +194,6 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
                     <p className={`text-sm sm:text-base transition-colors duration-300 ${
                       done || active ? "text-gray-900" : "text-gray-400"
                     }`}>{step.label}</p>
-                    <p className={`text-xs sm:text-sm ${
-                      done || active ? "text-gray-500" : "text-gray-300"
-                    }`}>{step.sub}</p>
                   </div>
                 </div>
               );
@@ -224,7 +221,7 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
                 </p>
                 <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
                   {pickupOverdue
-                    ? "The 10-minute pickup window has ended. Please contact the counter."
+                    ? "The 10-minute pickup window has ended."
                     : `${pickupMinutesLeft} min left to pick up your food before ${pickupDeadlineText}.`}
                 </p>
               </div>
@@ -274,7 +271,6 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
               <div>
                 <p className="text-sm sm:text-base text-gray-800">Order Rejected</p>
                 <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Your payment has been marked as refunded.</p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Please choose another item or vendor.</p>
               </div>
             </div>
           ) : (
@@ -289,7 +285,6 @@ export function OrderStatusScreen({ order, onPickup, onBackToMenu }) {
                     </p>
                   ))}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Show the matching order number at each counter.</p>
               </div>
             </div>
           )}

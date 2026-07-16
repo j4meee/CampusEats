@@ -285,7 +285,6 @@ export function VendorDashboard({ user, onLogout }) {
     <div className="min-h-screen bg-[#fafaf8] lg:grid lg:grid-cols-[260px_1fr]">
       <VendorSidebar
         title="CampusEats"
-        subtitle={staffType === "chef" ? "Chef Dashboard" : "Cashier Dashboard"}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         items={[
@@ -303,11 +302,7 @@ export function VendorDashboard({ user, onLogout }) {
       <div className="bg-[#f97316] text-white">
         <div className="px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
           <div>
-            <p className="text-orange-100 text-xs sm:text-sm">Vendor Dashboard</p>
             <h1 className="text-white">{user?.name || "Counter B Vendor"}</h1>
-            <p className="text-orange-100 text-sm">
-              {staffType === "chef" ? "Prepare accepted orders and mark them ready." : "Monitor incoming orders and accept or reject them."}
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className={`hidden sm:inline-flex rounded-full border px-3 py-1 text-xs font-medium ${serviceStatusMeta.className}`}>
@@ -338,9 +333,6 @@ export function VendorDashboard({ user, onLogout }) {
               <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h2 className="text-gray-900">Counter Status</h2>
-                  <p className="text-xs sm:text-sm text-gray-400">
-                    Students see this before ordering from your counter.
-                  </p>
                 </div>
                 <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${serviceStatusMeta.className}`}>
                   {serviceStatusMeta.label}
@@ -382,7 +374,6 @@ export function VendorDashboard({ user, onLogout }) {
               <Wallet className="w-5 h-5 text-[#f97316]" />
               <div>
                 <h2 className="text-gray-900">Student Wallet Top Up</h2>
-                <p className="text-xs sm:text-sm text-gray-400">Add balance after receiving cash from a student.</p>
               </div>
             </div>
             <div className="px-4 sm:px-5 py-4 space-y-3">
@@ -492,7 +483,6 @@ export function VendorDashboard({ user, onLogout }) {
           <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Current Weekly Menu</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Adjust stock here after direct canteen sales or restocking.</p>
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading weekly menu..." />}
@@ -543,7 +533,6 @@ export function VendorDashboard({ user, onLogout }) {
           <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100">
             <h2 className="text-gray-900">Incoming Orders</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Accept orders you can prepare in time, or reject during rush hours.</p>
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading orders..." />}
@@ -601,7 +590,6 @@ export function VendorDashboard({ user, onLogout }) {
         {staffType !== "chef" && activeSection === "weekly" && (
           <WeeklyMenuManager
             title="My Weekly Menu"
-            subtitle="Choose up to 10 of your items to show to students this week."
             onMenuSaved={() => loadDashboard({ force: true })}
           />
         )}
@@ -612,9 +600,6 @@ export function VendorDashboard({ user, onLogout }) {
               <Settings className="w-5 h-5 text-[#f97316]" />
               <div>
                 <h2 className="text-gray-900">Counter Settings</h2>
-                <p className="text-xs sm:text-sm text-gray-400">
-                  Update the details students see before placing an order.
-                </p>
               </div>
             </div>
             <div className="px-4 sm:px-5 py-4 space-y-4">
@@ -696,11 +681,10 @@ export function VendorDashboard({ user, onLogout }) {
   );
 }
 
-function VendorSidebar({ title, subtitle, activeSection, onSectionChange, items, onLogout }) {
+function VendorSidebar({ title, activeSection, onSectionChange, items, onLogout }) {
   return (
     <aside className="bg-white border-r border-gray-100 lg:min-h-screen lg:sticky lg:top-0">
       <div className="px-5 py-5 border-b border-gray-100">
-        <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center">
             <Store className="w-5 h-5 text-[#f97316]" />

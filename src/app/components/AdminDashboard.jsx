@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, ClipboardList, LayoutDashboard, LogOut, Plus, Settings, Store, Trash2, UserRound, Users, UtensilsCrossed } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, LayoutDashboard, LogOut, Plus, Settings, Store, Trash2, Trophy, UserRound, Users, UtensilsCrossed } from "lucide-react";
 import { fetchJson } from "../lib/api";
 import { WeeklyMenuManager } from "./WeeklyMenuManager";
 
@@ -8,6 +8,8 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
     summary: { vendors: 0, ordersToday: 0, sales: 0 },
     vendors: [],
     orders: [],
+    topSellingItems: [],
+    lowStockItems: [],
   });
   const [loading, setLoading] = useState(true);
   const [showVendorForm, setShowVendorForm] = useState(false);
@@ -25,12 +27,19 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   const [savingVendor, setSavingVendor] = useState(false);
   const [deletingVendorId, setDeletingVendorId] = useState(null);
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
 
   const loadDashboard = async () => {
     try {
       const data = await fetchJson("/api/dashboard/admin");
 
-      setDashboard(data);
+      setDashboard({
+        summary: data.summary || { vendors: 0, ordersToday: 0, sales: 0 },
+        vendors: data.vendors || [],
+        orders: data.orders || [],
+        topSellingItems: data.topSellingItems || [],
+        lowStockItems: data.lowStockItems || [],
+      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -135,11 +144,14 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
     }
   };
 
+  const filteredOrders = orderStatusFilter === "all"
+    ? dashboard.orders
+    : dashboard.orders.filter((order) => order.status === orderStatusFilter);
+
   return (
     <div className="min-h-screen bg-[#fafaf8] lg:grid lg:grid-cols-[260px_1fr]">
       <StaffSidebar
         title="CampusEats"
-        subtitle="Admin Dashboard"
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         items={[
@@ -156,7 +168,6 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
         <div className="bg-white border-b border-gray-100">
           <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-400">Admin Dashboard</p>
               <h1 className="text-gray-900">Welcome, {user?.name || "Admin"}</h1>
             </div>
             <div className="hidden sm:flex items-center gap-2">
@@ -182,17 +193,65 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
 
       <div className="px-4 sm:px-6 py-5 sm:py-7 space-y-5">
         {activeSection === "dashboard" && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <SummaryTile icon={Store} label="Vendors" value={String(dashboard.summary.vendors)} />
-          <SummaryTile icon={ClipboardList} label="Orders Today" value={String(dashboard.summary.ordersToday)} />
-          <SummaryTile icon={BarChart3} label="Sales" value={`$${dashboard.summary.sales.toFixed(2)}`} />
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <SummaryTile icon={Store} label="Vendors" value={String(dashboard.summary.vendors)} />
+              <SummaryTile icon={ClipboardList} label="Orders Today" value={String(dashboard.summary.ordersToday)} />
+              <SummaryTile icon={BarChart3} label="Sales" value={`$${dashboard.summary.sales.toFixed(2)}`} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <DashboardList
+                icon={Trophy}
+                title="Top Selling Items"
+                emptyText="No sales data yet."
+                items={dashboard.topSellingItems}
+                renderItem={(item, index) => (
+                  <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-lg bg-orange-50 text-[#f97316] flex items-center justify-center text-sm">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
+                        <p className="text-xs sm:text-sm text-gray-400">${Number(item.revenue || 0).toFixed(2)} revenue</p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-600">
+                      {item.quantitySold} sold
+                    </span>
+                  </div>
+                )}
+              />
+
+              <DashboardList
+                icon={AlertTriangle}
+                title="Low Stock Overview"
+                emptyText="No low-stock items."
+                items={dashboard.lowStockItems}
+                renderItem={(item) => (
+                  <div key={item.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm sm:text-base text-gray-900 truncate">{item.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-400 truncate">
+                        {item.category || "Menu"} - {item.vendor || "Vendor"}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${
+                      item.stockQuantity === 0 ? "bg-red-50 text-red-600" : "bg-orange-50 text-[#f97316]"
+                    }`}>
+                      {item.stockQuantity} left
+                    </span>
+                  </div>
+                )}
+              />
+            </div>
           </div>
         )}
 
         {activeSection === "menu" && (
           <WeeklyMenuManager
             title="Weekly Menu"
-            subtitle="Choose up to 10 active menu items for students. Admin can manage all vendors."
             onMenuSaved={loadDashboard}
           />
         )}
@@ -202,7 +261,6 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
           <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-gray-900">Vendor Counters & Staff</h2>
-              <p className="text-xs sm:text-sm text-gray-400">Admin creates counters and assigns cashier or chef accounts.</p>
             </div>
             <button
               type="button"
@@ -357,13 +415,32 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
 
         {activeSection === "orders" && (
           <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#f97316]" />
-            <h2 className="text-gray-900">All Orders</h2>
+          <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#f97316]" />
+              <h2 className="text-gray-900">All Orders</h2>
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {ORDER_STATUS_FILTERS.map((status) => (
+                <button
+                  key={status.id}
+                  type="button"
+                  onClick={() => setOrderStatusFilter(status.id)}
+                  className={`shrink-0 rounded-lg border px-3 py-2 text-xs sm:text-sm transition-colors ${
+                    orderStatusFilter === status.id
+                      ? "border-[#f97316] bg-orange-50 text-[#f97316]"
+                      : "border-gray-100 bg-white text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {status.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="divide-y divide-gray-50">
             {loading && <EmptyRow text="Loading orders..." />}
-            {!loading && dashboard.orders.map((order) => (
+            {!loading && filteredOrders.length === 0 && <EmptyRow text="No orders found." />}
+            {!loading && filteredOrders.map((order) => (
               <div key={order.id} className="px-4 sm:px-5 py-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
                 <span className="text-gray-900">{order.id}</span>
                 <span className="text-gray-500">{order.student}</span>
@@ -381,11 +458,19 @@ export function AdminDashboard({ user, onLogout, onProfile }) {
   );
 }
 
-function StaffSidebar({ title, subtitle, activeSection, onSectionChange, items, onProfile, onLogout }) {
+const ORDER_STATUS_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
+  { id: "preparing", label: "Preparing" },
+  { id: "ready", label: "Ready" },
+  { id: "picked_up", label: "Picked Up" },
+  { id: "cancelled", label: "Cancelled" },
+];
+
+function StaffSidebar({ title, activeSection, onSectionChange, items, onProfile, onLogout }) {
   return (
     <aside className="bg-white border-r border-gray-100 lg:min-h-screen lg:sticky lg:top-0">
       <div className="px-5 py-5 border-b border-gray-100">
-        <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center">
             <Store className="w-5 h-5 text-[#f97316]" />
@@ -447,6 +532,20 @@ function Input({ label, type = "text", value, onChange, placeholder, disabled = 
 
 function EmptyRow({ text }) {
   return <div className="px-4 sm:px-5 py-4 text-sm text-gray-400">{text}</div>;
+}
+
+function DashboardList({ icon: Icon, title, items, emptyText, renderItem }) {
+  return (
+    <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+        <Icon className="w-5 h-5 text-[#f97316]" />
+        <h2 className="text-gray-900">{title}</h2>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {items.length === 0 ? <EmptyRow text={emptyText} /> : items.map(renderItem)}
+      </div>
+    </section>
+  );
 }
 
 function SummaryTile({ icon: Icon, label, value }) {

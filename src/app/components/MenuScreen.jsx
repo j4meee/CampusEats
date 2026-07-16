@@ -129,13 +129,6 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
-          <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2">
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-200 shrink-0" />
-            <p className="text-xs sm:text-sm text-orange-100">
-              Order now - ready in as fast as <span className="text-white font-medium">5-10 min</span>
-            </p>
-          </div>
         </div>
       </div>
 
@@ -195,9 +188,11 @@ export function MenuScreen({ cart, onUpdateCart, onCheckout, onLogout, onProfile
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 line-clamp-2 min-h-8">
-                    {item.description || "Freshly prepared for campus pickup."}
-                  </p>
+                  {item.description && (
+                    <p className="text-xs text-gray-500 line-clamp-2 min-h-8">
+                      {item.description}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-400 truncate mt-2">
                     {item.category || "Menu"} - {item.vendor || "Campus vendor"}
                   </p>
@@ -349,9 +344,11 @@ function FoodDetailModal({ item, qty, onClose, onUpdate }) {
         </div>
 
         <div className="px-5 py-5 space-y-4">
-          <p className="text-sm text-gray-600">
-            {item.description || "Freshly prepared by the vendor and ready for campus pickup."}
-          </p>
+          {item.description && (
+            <p className="text-sm text-gray-600">
+              {item.description}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <DetailTile label="Price" value={`$${item.price.toFixed(2)}`} />
             <DetailTile label="Ready In" value={item.time} />

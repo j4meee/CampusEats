@@ -4,7 +4,7 @@ import { fetchJson } from "../lib/api";
 
 export function WeeklyMenuManager({
   title = "Weekly Menu",
-  subtitle = "Choose up to 10 items to show to students this week.",
+  subtitle = "",
   onMenuSaved,
 }) {
   const [items, setItems] = useState([]);
@@ -94,7 +94,7 @@ export function WeeklyMenuManager({
       <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-gray-900">{title}</h2>
-          <p className="text-xs sm:text-sm text-gray-400">{subtitle}</p>
+          {subtitle && <p className="text-xs sm:text-sm text-gray-400">{subtitle}</p>}
         </div>
         <button
           type="button"
