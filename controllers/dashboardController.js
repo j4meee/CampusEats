@@ -164,3 +164,47 @@ export const updateVendorServiceStatus = async (req, res) => {
     res.status(500).json({ message: "Failed to update service status", error: error.message });
   }
 };
+
+export const updateVendorSettings = async (req, res) => {
+  try {
+    if (req.user.role === "vendor" && req.user.vendorStaffType === "chef") {
+      return res.status(403).json({ message: "Chef accounts cannot update counter settings" });
+    }
+
+    const stallName = req.body.stallName?.trim();
+    const pickupLocation = req.body.pickupLocation?.trim();
+    const { serviceStatus } = req.body;
+    const allowedStatuses = ["open", "busy", "very_busy", "closed"];
+
+    if (!stallName || !pickupLocation) {
+      return res.status(400).json({ message: "Counter name and pickup location are required" });
+    }
+
+    if (!allowedStatuses.includes(serviceStatus)) {
+      return res.status(400).json({ message: "Invalid service status" });
+    }
+
+    const vendor = req.user.role === "vendor"
+      ? await findVendorForUser(req.user)
+      : await Vendor.findByPk(req.params.vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor counter not found" });
+    }
+
+    await vendor.update({ stallName, pickupLocation, serviceStatus });
+
+    res.status(200).json({
+      message: "Counter settings updated.",
+      vendor: {
+        id: vendor.id,
+        stallName: vendor.stallName,
+        pickupLocation: vendor.pickupLocation,
+        status: vendor.status,
+        serviceStatus: vendor.serviceStatus,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update vendor settings", error: error.message });
+  }
+};

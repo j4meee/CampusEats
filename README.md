@@ -34,6 +34,18 @@ Start the backend:
 npm run server
 ```
 
+Open Swagger API documentation after the backend starts:
+
+```txt
+http://localhost:5000/api-docs
+```
+
+Use `POST /api/auth/login` to get a JWT token, then click **Authorize** and enter:
+
+```txt
+Bearer YOUR_TOKEN
+```
+
 Or start both the frontend and backend in one terminal:
 
 ```bash

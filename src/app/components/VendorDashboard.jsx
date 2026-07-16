@@ -24,6 +24,15 @@ export function VendorDashboard({ user, onLogout }) {
   const [topUpMessage, setTopUpMessage] = useState("");
   const [topUpError, setTopUpError] = useState("");
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [settingsForm, setSettingsForm] = useState({
+    stallName: "",
+    pickupLocation: "",
+    serviceStatus: "open",
+  });
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState("");
+  const [settingsError, setSettingsError] = useState("");
   const refreshInFlight = useRef(false);
 
   const loadDashboard = useCallback(async ({ showLoading = false, force = false } = {}) => {
@@ -54,6 +63,23 @@ export function VendorDashboard({ user, onLogout }) {
 
     return () => window.clearInterval(refreshTimer);
   }, [loadDashboard, user?.id]);
+
+  useEffect(() => {
+    if (!dashboard.vendor || settingsDirty) return;
+
+    setSettingsForm({
+      stallName: dashboard.vendor.stallName || "",
+      pickupLocation: dashboard.vendor.pickupLocation || "",
+      serviceStatus: dashboard.vendor.serviceStatus || dashboard.serviceStatus || "open",
+    });
+  }, [
+    dashboard.serviceStatus,
+    dashboard.vendor?.id,
+    dashboard.vendor?.pickupLocation,
+    dashboard.vendor?.serviceStatus,
+    dashboard.vendor?.stallName,
+    settingsDirty,
+  ]);
 
   const updateOrderStatus = async (order, status) => {
     const body = { status };
@@ -135,6 +161,53 @@ export function VendorDashboard({ user, onLogout }) {
     } catch (error) {
       console.error(error);
       window.alert(error.message || "Failed to update counter status.");
+    }
+  };
+
+  const updateSettingsField = (field, value) => {
+    setSettingsForm((current) => ({ ...current, [field]: value }));
+    setSettingsDirty(true);
+    setSettingsError("");
+    setSettingsMessage("");
+  };
+
+  const saveVendorSettings = async () => {
+    setSettingsError("");
+    setSettingsMessage("");
+
+    if (!settingsForm.stallName.trim() || !settingsForm.pickupLocation.trim()) {
+      setSettingsError("Counter name and pickup location are required.");
+      return;
+    }
+
+    setSettingsSaving(true);
+
+    try {
+      const vendorId = dashboard.vendor?.id || user?.vendorCounterId || 0;
+      const data = await fetchJson(`/api/dashboard/vendor/${vendorId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stallName: settingsForm.stallName,
+          pickupLocation: settingsForm.pickupLocation,
+          serviceStatus: settingsForm.serviceStatus,
+        }),
+      });
+
+      setDashboard((current) => ({
+        ...current,
+        serviceStatus: data.vendor.serviceStatus,
+        vendor: {
+          ...current.vendor,
+          ...data.vendor,
+        },
+      }));
+      setSettingsDirty(false);
+      setSettingsMessage("Counter settings saved.");
+    } catch (error) {
+      setSettingsError(error.message || "Failed to save counter settings.");
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -221,6 +294,7 @@ export function VendorDashboard({ user, onLogout }) {
           { id: "menu", label: "Current Menu", icon: UtensilsCrossed },
           { id: "orders", label: staffType === "chef" ? "Kitchen Orders" : "Incoming Orders", icon: Clock },
           ...(staffType !== "chef" ? [{ id: "weekly", label: "Weekly Menu", icon: Store }] : []),
+          { id: "settings", label: "Settings", icon: Settings },
         ]}
         onLogout={onLogout}
       />
@@ -531,6 +605,91 @@ export function VendorDashboard({ user, onLogout }) {
             onMenuSaved={() => loadDashboard({ force: true })}
           />
         )}
+
+        {activeSection === "settings" && (
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-[#f97316]" />
+              <div>
+                <h2 className="text-gray-900">Counter Settings</h2>
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Update the details students see before placing an order.
+                </p>
+              </div>
+            </div>
+            <div className="px-4 sm:px-5 py-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Counter Name</span>
+                  <input
+                    value={settingsForm.stallName}
+                    onChange={(event) => updateSettingsField("stallName", event.target.value)}
+                    readOnly={staffType === "chef"}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 read-only:bg-gray-100 read-only:text-gray-500 transition-all"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs sm:text-sm text-gray-500 mb-1.5 block">Pickup Location</span>
+                  <input
+                    value={settingsForm.pickupLocation}
+                    onChange={(event) => updateSettingsField("pickupLocation", event.target.value)}
+                    readOnly={staffType === "chef"}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-orange-100 read-only:bg-gray-100 read-only:text-gray-500 transition-all"
+                  />
+                </label>
+              </div>
+
+              <div>
+                <span className="text-xs sm:text-sm text-gray-500 mb-2 block">Counter Status</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {SERVICE_STATUS_OPTIONS.map((option) => {
+                    const active = settingsForm.serviceStatus === option.id;
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => updateSettingsField("serviceStatus", option.id)}
+                        disabled={staffType === "chef"}
+                        className={`rounded-lg border px-3 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+                          active
+                            ? option.className
+                            : "border-gray-100 bg-white text-gray-500 hover:bg-gray-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {settingsError && (
+                <p className="text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {settingsError}
+                </p>
+              )}
+              {settingsMessage && (
+                <p className="text-xs sm:text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                  {settingsMessage}
+                </p>
+              )}
+
+              {staffType === "chef" ? (
+                <p className="text-sm text-gray-400">Cashier accounts manage counter settings.</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={saveVendorSettings}
+                  disabled={settingsSaving}
+                  className="bg-[#f97316] hover:bg-orange-600 text-white rounded-lg px-4 py-2.5 text-sm disabled:opacity-70 disabled:hover:bg-[#f97316] transition-colors"
+                >
+                  {settingsSaving ? "Saving..." : "Save Settings"}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
       </div>
       </main>
     </div>
@@ -572,10 +731,6 @@ function VendorSidebar({ title, subtitle, activeSection, onSectionChange, items,
       </nav>
       <div className="hidden lg:block px-3 py-4 border-t border-gray-100">
         <p className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-gray-300">System</p>
-        <button type="button" className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
-          <Settings className="w-4 h-4" />
-          Settings
-        </button>
         <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900">
           <LogOut className="w-4 h-4" />
           Logout

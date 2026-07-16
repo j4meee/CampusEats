@@ -1,8 +1,10 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 import sequelize from "./db/database.js";
 import "./model/index.js";
+import { swaggerSpec } from "./config/swagger.js";
 import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
@@ -20,6 +22,13 @@ app.use(express.json());
 app.get("/", (_req, res) => {
   res.json({ message: "CampusEats API is running" });
 });
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "CampusEats API Docs",
+  swaggerOptions: {
+    persistAuthorization: true,
+  },
+}));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
